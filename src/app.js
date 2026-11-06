@@ -117,7 +117,7 @@ function initMap(){
  layers[0].l.addTo(map);
  relief=new ArcTiles('',{svc:'RELIEF/WALLONIE_MNS_2021_2022_HILLSHADE',maxZoom:23,maxNativeZoom:21,opacity:0.55,fmt:'png'});
  panLayer=L.layerGroup().addTo(map);drawLayer=L.layerGroup().addTo(map);editLayer=L.layerGroup().addTo(map);
- map.on('click',function(e){if(mode==='pick'){mode='idle';tools();ACT.detectAt([e.latlng.lat,e.latlng.lng]);return;}if(mode==='draw'){addPt([e.latlng.lat,e.latlng.lng]);}else if(selV!=null&&mode==='edit'){selV=null;drawEdit();tools();}});
+ map.on('click',function(e){if(mode==='solar'){mode='idle';tools();solarAt([e.latlng.lat,e.latlng.lng]);return;}if(mode==='pick'){mode='idle';tools();ACT.detectAt([e.latlng.lat,e.latlng.lng]);return;}if(mode==='draw'){addPt([e.latlng.lat,e.latlng.lng]);}else if(selV!=null&&mode==='edit'){selV=null;drawEdit();tools();}});
  map.on('move',function(){if(mode==='draw'){loupeShow(map.getCenter());var lb=$('#mlen');if(lb&&drawPts&&drawPts.length){var c=map.getCenter();lb.textContent=nf(edgeLen(drawPts[drawPts.length-1],[c.lat,c.lng]),2)+' m';lb.style.display='block';}}});
  map.on('moveend',function(){if(P){var c=map.getCenter();P.mlat=c.lat;P.mlon=c.lng;P.zoom=map.getZoom();}});
 }
@@ -180,7 +180,8 @@ function tools(){var h='';
  if(mode==='draw')h='<button class="btn sm" data-a="ptHere">＋ Point</button><button class="btn s sm" data-a="undoPt">↶</button><button class="btn sm g" data-a="endDraw"'+(drawPts&&drawPts.length>=3?'':' disabled')+'>✓ Terminer</button><button class="btn s sm" data-a="cancelDraw">✕</button>';
  else if(mode==='edit')h=(selV!=null?'<div class="nudge"><button data-a="nudge" data-d="0,1">▲</button><button data-a="nudge" data-d="-1,0">◀</button><button data-a="nudge" data-d="1,0">▶</button><button data-a="nudge" data-d="0,-1">▼</button></div><button class="btn sm" data-a="vHere">📍 Au viseur</button><button class="btn s sm" data-a="vDel">🗑</button>':'<span class="btn s sm" style="pointer-events:none">Touche ou glisse un point</span>')+'<button class="btn s sm" data-a="undo"'+(HIST.length?'':' disabled')+'>↶</button><button class="btn s sm'+(SQUARE?' on':'')+'" data-a="square">⟂</button><button class="btn sm g" data-a="endEdit">✓ Fini</button>';
  else if(mode==='pick')h='<button class="btn s sm" data-a="detect">✕ Annuler</button>';
- else if(curTab==='toit')h='<button class="btn sm" data-a="detect">🪄 Détecter le toit</button><button class="btn sm" data-a="startDraw">✏️ Dessiner</button>'+(selPan?'<button class="btn s sm" data-a="startEdit">✥ Modifier</button><button class="btn s sm" data-a="delSel">🗑</button>':'')+(P.pans.length?'<button class="btn s sm" data-a="fit">⤢</button>':'');
+ else if(mode==='solar')h='<button class="btn s sm" data-a="solar">✕ Annuler</button>';
+ else if(curTab==='toit')h=(gkey()?'<button class="btn sm" data-a="solar">☀️ Google Solar</button>':'')+'<button class="btn sm" data-a="detect">🪄 Détecter le toit</button><button class="btn sm" data-a="startDraw">✏️ Dessiner</button>'+(selPan?'<button class="btn s sm" data-a="startEdit">✥ Modifier</button><button class="btn s sm" data-a="delSel">🗑</button>':'')+(P.pans.length?'<button class="btn s sm" data-a="fit">⤢</button>':'');
  else if(curTab==='pv')h='<button class="btn sm" data-a="relayout">↻ Recalepiner</button><span class="btn s sm" style="pointer-events:none">Touche un panneau pour l’enlever</span>';
  $('#maptools').innerHTML=h;cross(mode==='draw'||(mode==='edit'&&selV!=null));loupeAuto();}
 function fit(){if(!P.pans.length)return;var b=L.latLngBounds([]);P.pans.forEach(function(p){p.pts.forEach(function(q){b.extend(q);});});map.fitBounds(b,{padding:[40,40],maxZoom:21});}
@@ -341,8 +342,10 @@ function vToit(){var h='<div class="card"><h3>Client</h3><div class="row">'+inp(
   '<div class="row">'+inp('Nom','pans.'+P.pans.indexOf(p)+'.name',{rr:1})+inp('Pente (°)','pans.'+P.pans.indexOf(p)+'.tilt',{num:1,rr:1})+inp('Orientation (°, 180 = sud)','pans.'+P.pans.indexOf(p)+'.az',{num:1,rr:1})+'</div>'+
   '<div class="note">Surface au sol '+nf(st.plan,1)+' m² · surface réelle '+nf(p.tilt!=null?st.real:st.plan,1)+' m²'+(p.tiltSrc==='lidar'?' · <b>pente mesurée par LiDAR</b>':'')+'</div>';
   if(p.lidar){if(p.lidar.st==='run')h+='<div class="note">Mesure LiDAR de la pente…</div>';else if(p.lidar.st==='ok')h+='<div class="note">LiDAR : pente '+nf(p.lidar.tilt,1)+'°, orientation '+p.lidar.az+'°, écart moyen '+nf(p.lidar.rms*100)+' cm sur '+p.lidar.n+' points'+(p.lidar.dAz>20?' · ⚠ l’orientation LiDAR diffère de '+p.lidar.dAz+'° : vérifie que tu as bien commencé par la gouttière':'')+'</div>'+(p.lidar.msg?'<div class="warn">'+esc(p.lidar.msg)+'</div>':'');else h+='<div class="warn">'+esc(p.lidar.msg)+'</div>';}
+  if(p.gsolar)h+='<div class="note">☀️ Google Solar : pente '+nf(p.gsolar.pitch,1)+'°, orientation '+p.gsolar.az+'°, '+nf(p.gsolar.area,1)+' m²'+(p.gsolar.shape==='rect'?' · contour approximatif (rectangle) : ajuste les points':' · contour recalé sur le LiDAR')+'</div>';
   if(p.hz){if(p.hz.st==='run')h+='<div class="note">Analyse des ombrages (relevé LiDAR jusqu’à 1,6 km)…</div><div class="prog"><i id="hzp'+p.id+'"></i></div>';else if(p.hz.st==='ok')h+='<div class="note">Ombrages analysés ✓ (horizon max '+nf(Math.max.apply(0,p.horizon.slice(Math.round(HZ_N/4),Math.round(HZ_N*3/4)+1)))+'° côté sud)</div>';else h+='<div class="warn">'+esc(p.hz.msg)+'</div>';}
   h+='<div class="btns"><button class="btn s sm" data-a="selEdit" data-id="'+p.id+'">✥ Modifier les points</button><button class="btn s sm" data-a="lidar" data-id="'+p.id+'">📡 Remesurer</button><button class="btn s sm" data-a="flip" data-id="'+p.id+'">⇅ Inverser l’orientation</button></div></div>';});
+ if(P.gsolar)h+='<div class="okb">☀️ Google Solar : '+P.gsolar.panels+' panneaux possibles au maximum sur ce toit ('+P.gsolar.area+' m²), ensoleillement jusqu’à '+nf(P.gsolar.sun)+' h/an · photos du '+esc(P.gsolar.date)+' ('+esc(P.gsolar.quality)+').</div>';
  h+='</div><div class="card"><h3>Astuce précision</h3><p class="note">Le LiDAR wallon date de 2021-2022 (environ 13 points/m²) : une extension récente ou un arbre abattu depuis n’y figurent pas. Pour un chantier à fort enjeu, ton relevé drone Pix4D reste la référence.</p></div>';return h;}
 function vPV(){var m=MOD(),tot=onPanels().length,h='<div class="card"><h3>Panneaux</h3>'+inp('Modèle de panneau','modIdx',{opts:DB.prices.mods.map(function(x,i){return [i,x.n+' – '+x.wc+' Wc'];}),rr:1})+
  '<div class="kpis"><div class="kpi hi"><div class="v">'+tot+'</div><div class="l">panneaux posables</div></div><div class="kpi hi"><div class="v">'+nf(tot*m.wc/1000,2)+' kWc</div><div class="l">puissance maximale</div></div></div></div>';
@@ -427,14 +430,14 @@ function civHtml(){var c=CO(),d=P.devis,L=devisLines()||[],vat=+P.client.vat||6,
  '<table class="ctot"><tr><td>Total HTVA</td><td>'+civN(ht)+' €</td></tr><tr><td>Total TVA</td><td>'+civN(tva)+' €</td></tr><tr><td>Total TVAC</td><td>'+civN(ttc)+' €</td></tr><tr><td>Acompte</td><td>€</td></tr><tr class="cnet"><td>TOTAL</td><td>'+civN(ttc)+' €</td></tr></table></div>'+
  '<div class="csig"><div><b>Pour accord</b><br>Date et signature du client, précédées de la mention « Bon pour accord »</div><div class="cbox">'+(d.sig?'<img src="'+d.sig+'" alt="Signature">':'')+'</div></div>'+(d.sig?'<div class="csok">Bon pour accord — '+esc(d.sigName)+(d.sigPlace?', à '+esc(d.sigPlace):'')+', le '+civDate(d.sigDate)+' à '+esc(d.sigTime)+'</div>':'')+
  '<div class="cfoot"><p>Cette offre est valable pour une durée de 3 mois à compter de sa date d’émission.</p><p><span class="red">Conditions générales de paiement :</span> '+esc(c.cgv)+'</p><p class="big">'+esc(c.acompteTxt)+'</p><p><b>Pour acceptation merci de retourner ce devis et conditions générales de vente signé avec la mention "Bon pour Accord".</b></p><p><b>'+esc(c.reserveTxt)+'</b></p></div></div>';}
-var VERSION='6 – 6 nov. 2026';
+var VERSION='7 – 6 nov. 2026';
 function vSync(){var c=Sync.cfg();
  if(c.token)return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><div class="okb">Activée et chiffrée 🔒 : tout ce que tu fais ici se retrouve sur tes autres appareils, et inversement (toutes les 15 secondes et à chaque ouverture). GitHub ne voit qu’un bloc illisible.</div><p class="note" id="syncst">'+esc(Sync.status()||'')+'</p><div class="btns"><button class="btn" data-a="syncNow">↻ Synchroniser maintenant</button><button class="btn s" data-a="syncOff">Déconnecter cet appareil</button></div></div>';
  return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><p class="note">Tes études, prix et réglages sont gardés dans un coffre privé sur ton compte GitHub (gratuit). À faire <b>une seule fois</b> :</p>'+
  '<ol class="note" style="padding-left:18px;margin:4px 0"><li>Crée un compte sur <a href="https://github.com/signup" target="_blank">github.com</a> (si tu n’en as pas).</li><li>Ouvre <a href="https://github.com/settings/tokens/new?scopes=gist&description=R%20Toitures%20Solaire" target="_blank">cette page</a> : choisis « No expiration », laisse seulement « gist » coché, puis « Generate token ».</li><li>Copie la clé (elle commence par ghp_) et colle-la ci-dessous, <b>sur le PC et sur le téléphone</b>.</li></ol>'+
  '<label class="f">Clé GitHub<input id="synctok" placeholder="ghp_…" autocomplete="off"></label><label class="f">Mot de passe de synchro (le même sur le PC et le téléphone, 8 caractères minimum)<input id="syncpw" type="password" autocomplete="new-password"></label><div class="btns"><button class="btn" data-a="syncOn">Activer la synchro</button></div><p class="note">🔒 Tes études, clients, prix et coordonnées sont <b>chiffrés sur ton appareil</b> avec ce mot de passe avant d’être envoyés : GitHub ne peut pas les lire. Garde-le bien : sans lui, la copie en ligne est perdue (tes appareils gardent leurs données). La clé et le mot de passe restent sur tes appareils.</p></div>';}
-function vGoogle(){var k=gkey();return '<div class="card"><h3>📷 3D photo de Google</h3>'+(k?'<div class="okb">Clé enregistrée sur cet appareil. Dans la vue 3D, touche « 📷 3D Google ».</div><div class="btns"><button class="btn s" data-a="gkeyDel">Retirer la clé</button></div>':
- '<p class="note">Pour voir et dessiner sur la vraie 3D photo (comme Google Earth), il faut une clé Google, <b>une seule fois</b> sur chaque appareil :</p><ol class="note" style="padding-left:18px;margin:4px 0"><li>Va sur <a href="https://console.cloud.google.com/" target="_blank">console.cloud.google.com</a>, crée un projet « R Toitures Solaire ».</li><li>Active la facturation (carte bancaire demandée par Google) : les 1 000 premières ouvertures de 3D par mois sont gratuites, ensuite environ 6 $ les 1 000.</li><li>Dans « API et services », active <b>Map Tiles API</b>.</li><li>« Identifiants » → « Créer des identifiants » → « Clé API », puis restreins-la à Map Tiles API.</li><li>Copie la clé (elle commence par AIza) et colle-la ici.</li></ol><label class="f">Clé Google<input id="gkeyin" placeholder="AIza…" autocomplete="off"></label><div class="btns"><button class="btn" data-a="gkeySave">Enregistrer</button></div>')+
+function vGoogle(){var k=gkey();return '<div class="card"><h3>📷 3D photo de Google</h3>'+(k?'<div class="okb">Clé enregistrée sur cet appareil. Dans la vue 3D, touche « 📷 3D Google ». Dans l’onglet Toit, « ☀️ Google Solar » trouve les versants tout seul.</div><p class="note">Si Google Solar répond « Google refuse » : dans Google Cloud, active <b>Solar API</b> (barre de recherche → Solar API → Activer), puis dans « Identifiants », ouvre ta clé et coche aussi <b>Solar API</b> dans « Restrictions d’API ».</p><div class="btns"><button class="btn s" data-a="gkeyDel">Retirer la clé</button></div>':
+ '<p class="note">Pour voir et dessiner sur la vraie 3D photo (comme Google Earth), il faut une clé Google, <b>une seule fois</b> sur chaque appareil :</p><ol class="note" style="padding-left:18px;margin:4px 0"><li>Va sur <a href="https://console.cloud.google.com/" target="_blank">console.cloud.google.com</a>, crée un projet « R Toitures Solaire ».</li><li>Active la facturation (carte bancaire demandée par Google) : les 1 000 premières ouvertures de 3D par mois sont gratuites, ensuite environ 6 $ les 1 000.</li><li>Dans « API et services », active <b>Map Tiles API</b> et <b>Solar API</b>.</li><li>« Identifiants » → « Créer des identifiants » → « Clé API », puis restreins-la à Map Tiles API et Solar API.</li><li>Copie la clé (elle commence par AIza) et colle-la ici.</li></ol><label class="f">Clé Google<input id="gkeyin" placeholder="AIza…" autocomplete="off"></label><div class="btns"><button class="btn" data-a="gkeySave">Enregistrer</button></div>')+
  '<p class="note">La 3D Google couvre Ciney et la plupart des villes, pas toujours les petits villages : là, l’outil garde la maquette LiDAR. Les conditions de Google interdisent de recopier leurs données pour les stocker ailleurs : le relevé de tes versants reste calé sur le LiDAR wallon (pente, hauteurs), Google sert à voir et à viser.</p></div>';}
 function vCompany(){var c=DB.company||{},f=function(l,k,ph){return inp(l,'company.'+k,{db:1,ph:ph||''});};
  return '<div class="card"><h3>🏢 Mon entreprise (en-tête des devis)</h3><p class="note">Ces coordonnées restent sur tes appareils (et dans la synchro chiffrée), jamais dans le programme en ligne.</p>'+
@@ -466,11 +469,11 @@ function reportHtml(){var R=RES.mine,A=R.A,p1='',p2='',p3='';
 function doPrint(html){var pr=$('#print');pr.innerHTML=html;setTimeout(function(){window.print();},300);}
 /* ================= Actions ================= */
 var ACT={
- geo:function(){var q=$('#q').value.trim();if(!q)return;toast('Recherche…');geocode(q).then(function(r){if(!r.length){toast('Adresse introuvable');return;}var x=r[0];if(!P.pans.length){P.lat=+x.lat;P.lon=+x.lon;GRID=null;}map.setView([+x.lat,+x.lon],20);if(!P.client.addr)P.client.addr=x.display_name.split(',').slice(0,3).join(',').trim();
+ geo:function(){var q=$('#q').value.trim();if(!q)return;toast('Recherche…');geocode(q).then(function(r){if(!r.length){toast('Adresse introuvable');return;}var x=r[0];if(!P.pans.length){P.lat=+x.lat;P.lon=+x.lon;GRID=null;}map.setView([+x.lat,+x.lon],20);if(gkey()&&!P.pans.length)setTimeout(function(){ACT.v3d();},400);if(!P.client.addr)P.client.addr=x.display_name.split(',').slice(0,3).join(',').trim();
   var a=x.address||{};if(a.road){P.client.addr=(a.road+(a.house_number?' '+a.house_number:''))+', '+(a.postcode||'')+' '+(a.city||a.town||a.village||a.municipality||'');}W=null;dirty();save();render();}).catch(function(){toast('Recherche impossible (pas d’internet ?)');});},
  layer:function(){map.removeLayer(layers[layerI].l);layerI=(layerI+1)%layers.length;layers[layerI].l.addTo(map);if(relief&&map.hasLayer(relief))relief.bringToFront();toast(layers[layerI].n);},
  relief:function(){if(map.hasLayer(relief)){map.removeLayer(relief);toast('Relief LiDAR masqué');}else{relief.addTo(map);toast('Relief LiDAR : les arêtes du toit ressortent');}},
- v3d:function(){if(!P.pans.length&&!map){return;}var c=map.getCenter();if(!P.pans.length){P.lat=c.lat;P.lon=c.lng;}View3D.open(H3D());},
+ v3d:function(){if(!P.pans.length&&!map){return;}var c=map.getCenter();if(!P.pans.length){P.lat=c.lat;P.lon=c.lng;}View3D.open(H3D(),{google:!!gkey()});},
  startDraw:function(){mode='draw';drawPts=[];selPan=null;editLayer.clearLayers();if(map.getZoom()<19)map.setZoom(20,{animate:false});drawPans();drawRedraw();},
  ptHere:function(){var c=map.getCenter();addPt([c.lat,c.lng]);},
  undoPt:function(){drawPts.pop();drawRedraw();loupeShow(map.getCenter());},
@@ -497,6 +500,8 @@ var ACT={
    added.forEach(function(p){layout(p);});dirty();save();drawPans();render();fit();
    toast(added.length+' versant(s) détecté(s) ✓ — vérifie-les et ajuste les points avec « ✥ Modifier »',5000);
    added.reduce(function(pr,p){return pr.then(function(){return horizonScan(p);}).then(function(){save();render();});},Promise.resolve());});},
+ solar:function(){if(!gkey()){toast('Il faut la clé Google (⚙️ Réglages)',4000);return;}if(mode==='solar'){mode='idle';stat();tools();return;}mode='solar';stat('☀️ Touche la maison sur la carte');tools();},
+ solarAt:function(ll){return solarAt(ll);},
  delPan:function(el){if(!confirm('Supprimer ce versant ?'))return;P.pans=P.pans.filter(function(p){return p.id!==el.dataset.id;});dirty();save();drawPans();render();},
  delSel:function(){var p=P.pans.find(function(x){return x.id===selPan;});if(!p)return;if(!confirm('Supprimer « '+p.name+' » ?'))return;P.pans=P.pans.filter(function(x){return x.id!==p.id;});selPan=null;dirty();save();drawPans();render();toast('Versant supprimé');},
  selEdit:function(el){selPan=el.dataset.id;window.scrollTo(0,0);ACT.startEdit();},
@@ -530,11 +535,42 @@ var ACT={
  delS:function(el){if(!confirm('Supprimer cette étude ?'))return;DB.deleted=DB.deleted||{};DB.deleted[el.dataset.id]=Date.now();DB.studies=DB.studies.filter(function(s){return s.id!==el.dataset.id;});if(P&&P.id===el.dataset.id){P=newStudy();drawPans();render();}saveNow();openStudies();},
  close:closeModal
 };
+/* ===== Google Solar API : versants du toit (pente, orientation, surface) ===== */
+function gsolarFetch(lat,lon){var u='https://solar.googleapis.com/v1/buildingInsights:findClosest?location.latitude='+lat.toFixed(6)+'&location.longitude='+lon.toFixed(6)+'&requiredQuality=LOW&key='+encodeURIComponent(gkey());
+ return fetch(u).then(function(r){return r.json().catch(function(){return {};}).then(function(j){if(r.status===403||r.status===401)throw new Error('KEY');if(r.status===404)throw new Error('NODATA');if(!r.ok)throw new Error((j.error&&j.error.message)||('Google '+r.status));return j;});});}
+function rectFromSeg(sg,o){var c=toXY([sg.center.latitude,sg.center.longitude],o),sw=toXY([sg.boundingBox.sw.latitude,sg.boundingBox.sw.longitude],o),ne=toXY([sg.boundingBox.ne.latitude,sg.boundingBox.ne.longitude],o);
+ var W=Math.abs(ne[0]-sw[0]),H=Math.abs(ne[1]-sw[1]),az=(sg.azimuthDegrees||180)*RAD,pitch=(sg.pitchDegrees||0)*RAD,d=[Math.sin(az),Math.cos(az)],e=[Math.cos(az),-Math.sin(az)];
+ var plan=((sg.stats&&sg.stats.areaMeters2)||W*H)*Math.cos(pitch),ex=Math.abs(e[0]),ey=Math.abs(e[1]),dx=Math.abs(d[0]),dy=Math.abs(d[1]),det=ex*dy-dx*ey,a,b;
+ if(Math.abs(det)>0.25){a=(W*dy-H*dx)/det;b=(H*ex-W*ey)/det;}if(!(a>1&&b>1)){a=b=Math.sqrt(plan);}var k=Math.sqrt(plan/(a*b));a*=k;b*=k;
+ var bc=[(sw[0]+ne[0])/2,(sw[1]+ne[1])/2];c=[(c[0]+bc[0])/2,(c[1]+bc[1])/2];
+ function P2(s1,s2){return [c[0]+d[0]*b/2*s1+e[0]*a/2*s2,c[1]+d[1]*b/2*s1+e[1]*a/2*s2];}
+ return [P2(1,-1),P2(1,1),P2(-1,1),P2(-1,-1)];}
+function solarAt(ll){if(map.getZoom()<18)map.setView(ll,20,{animate:false});
+ if(!P.pans.length){P.lat=ll[0];P.lon=ll[1];GRID=null;}var o=L0(),xy=toXY(ll,o);
+ stat('☀️ Google Solar analyse le toit…');
+ var lid=getGrid(xy[0],xy[1],22,0.5).then(function(G){return G.z.filter(function(v){return v!=null;}).length>200?detectRoof(G,xy[0],xy[1]):{err:1};}).catch(function(){return {err:1};});
+ return Promise.all([gsolarFetch(ll[0],ll[1]),lid]).then(function(res){var b=res[0],L=res[1],sp=b.solarPotential||{},segs=(sp.roofSegmentStats||[]).filter(function(s){return s.stats&&s.stats.areaMeters2>=4;});
+  stat();if(!segs.length){toast('Google Solar ne donne pas de versant pour ce bâtiment : utilise 🪄 Détecter le toit.',5000);return [];}
+  var lp=(L&&L.pans)||[],used={},n0=P.pans.length,refined=0;
+  segs.forEach(function(sg){var c=toXY([sg.center.latitude,sg.center.longitude],o),best=-1,bd=1e9;
+   lp.forEach(function(d,i){if(used[i])return;var cc=centroid(d.xy),dist=Math.hypot(cc[0]-c[0],cc[1]-c[1]),daz=Math.abs(((d.az-sg.azimuthDegrees+540)%360)-180);if(dist<3&&daz<25&&Math.abs(d.tilt-sg.pitchDegrees)<12&&dist<bd){bd=dist;best=i;}});
+   var poly,plane=null;if(best>=0){used[best]=1;refined++;poly=lp[best].xy;plane=lp[best].pl;}else poly=rectFromSeg(sg,o);
+   var dup=P.pans.some(function(p){return inPoly(toXY(centroid(p.pts),o),poly);});if(dup)return;
+   var pan=newPan(poly.map(function(q){return toLL(q,o);}),true);pan.tilt=Math.round(sg.pitchDegrees*10)/10;pan.tiltSrc='google';
+   pan.gsolar={pitch:r2(sg.pitchDegrees),az:Math.round(sg.azimuthDegrees),area:r2(sg.stats.areaMeters2),shape:best>=0?'lidar':'rect'};
+   if(plane)pan.plane={a:plane.a,b:plane.b,c:plane.c,lat:o.lat,lon:o.lon};else if(GRID)fitFromGrid(pan);
+   pan.tilt=Math.round(sg.pitchDegrees*10)/10;pan.tiltSrc='google';pan.lidar=pan.lidar||{st:'ok',tilt:pan.tilt,az:pan.gsolar.az,rms:0,n:0,dAz:0};});
+  var added=P.pans.slice(n0);P.gsolar={date:b.imageryDate?b.imageryDate.day+'/'+b.imageryDate.month+'/'+b.imageryDate.year:'',quality:b.imageryQuality||'',sun:Math.round(sp.maxSunshineHoursPerYear||0),panels:sp.maxArrayPanelsCount||0,area:Math.round(sp.maxArrayAreaMeters2||0)};
+  if(!added.length){toast('Ces versants sont déjà dessinés');return [];}
+  added.forEach(function(p){layout(p);});dirty();save();drawPans();render();fit();
+  toast('☀️ '+added.length+' versant(s) de Google Solar'+(refined?' ('+refined+' recalé(s) sur le LiDAR)':'')+' ✓ — vérifie-les avec « ✥ Modifier »',5500);
+  added.reduce(function(pr,p){return pr.then(function(){return horizonScan(p);}).then(function(){save();render();});},Promise.resolve());return added;})
+ .catch(function(e){stat();var m=e&&e.message;toast(m==='KEY'?'Google refuse : active « Solar API » dans Google Cloud et ajoute-la aux restrictions de ta clé (⚙️ Réglages explique comment).':m==='NODATA'?'Google Solar n’a pas de données pour ce bâtiment : utilise 🪄 Détecter le toit.':'Google Solar indisponible ('+(m||'internet ?')+')',7000);return [];});}
 function newPan(pts,silent){var pan={id:uid(),name:'Versant '+(P.pans.length+1),color:COLORS[P.pans.length%COLORS.length],pts:pts,tilt:35,tiltSrc:'défaut',margin:0.4,orient:'portrait',panels:[],horizon:null};
  if(P.pans.length===0&&!GRID){var c=centroid(pan.pts);P.lat=c[0];P.lon=c[1];}
  pan.az=Math.round(panFrame(pan).az);P.pans.push(pan);selPan=pan.id;layout(pan);dirty();save();drawPans();render();if(!silent)measure(pan);return pan;}
 function gkey(){try{return localStorage.getItem('rts_gkey')||'';}catch(e){return '';}}
-function H3D(){var o=L0();return {o:o,toLL:toLL,gkey:gkey,
+function H3D(){var o=L0();return {o:o,toLL:toLL,gkey:gkey,solar:function(xy){return solarAt(toLL(xy,o));},
  addPan:function(xy){var pan=newPan(xy.map(function(q){return toLL(q,o);}),true);return measure(pan);},
  movePt:function(id,k,xy){var p=P.pans.find(function(x){return x.id===id;});if(!p)return;pushHist(p);p.pts[k]=toLL(xy,o);afterGeom(p);},
  insPt:function(id,k,xy){var p=P.pans.find(function(x){return x.id===id;});if(!p)return;p.pts.splice(k,0,toLL(xy,o));afterGeom(p);},

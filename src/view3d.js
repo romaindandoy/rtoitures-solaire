@@ -7,7 +7,7 @@ var View3D=(function(){
  function loadTex(H,G,half,px){var o=H.o,c=[G.x0+half,G.y0+half],sw=H.toLL([c[0]-half,c[1]-half],o),ne=H.toLL([c[0]+half,c[1]+half],o),a=merc(sw[0],sw[1]),b=merc(ne[0],ne[1]);
   var u=GEO+'IMAGERIE/ORTHO_2026_PRINTEMPS/MapServer/export?bbox='+[a[0],a[1],b[0],b[1]].join(',')+'&bboxSR=3857&imageSR=3857&size='+(px||2048)+','+(px||2048)+'&format=jpg&f=image';
   return fetch(u).then(function(r){if(!r.ok)throw 0;return r.blob();}).then(function(bl){if(!/image/.test(bl.type))throw 0;return createImageBitmap(bl,{imageOrientation:'flipY'});}).then(function(im){var t=new THREE.Texture(im);t.flipY=false;t.needsUpdate=true;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t;}).catch(function(){return null;});}
- function open(H){
+ function open(H,opt){opt=opt||{};
   close();
   var ov=el('<div id="v3d" style="position:fixed;inset:0;z-index:2600;background:#0b0f19;color:#fff;font:14px system-ui"><canvas style="position:absolute;inset:0;width:100%;height:100%;touch-action:none"></canvas>'+
    '<div style="position:absolute;left:8px;right:8px;top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button data-v="close" class="btn sm">✕ Fermer</button><select data-v="date" style="padding:7px;border-radius:9px;border:0;font:inherit"><option value="5-21">21 juin</option><option value="2-20">21 mars</option><option value="11-21">21 décembre</option><option value="now">Aujourd’hui</option></select>'+
@@ -19,7 +19,7 @@ var View3D=(function(){
   var R=new THREE.WebGLRenderer({canvas:cv,antialias:true});R.setPixelRatio(Math.min(2,window.devicePixelRatio||1));R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;R.outputColorSpace=THREE.SRGBColorSpace;R.toneMapping=THREE.ACESFilmicToneMapping;R.toneMappingExposure=1.05;
   var S=new THREE.Scene();S.background=new THREE.Color(0xbfd7ee);S.fog=new THREE.Fog(0xbfd7ee,120,420);
   var cam=new THREE.PerspectiveCamera(45,1,0.3,3000);
-  var ctl=new OrbitControls(cam,cv);ctl.enableDamping=true;ctl.maxPolarAngle=Math.PI*0.49;
+  var ctl=new OrbitControls(cam,cv);ctl.enableDamping=true;ctl.maxPolarAngle=Math.PI*0.49;ctl.minDistance=2;ctl.maxDistance=400;ctl.zoomSpeed=1.4;
   S.add(new THREE.HemisphereLight(0xdfeeff,0x6b5b45,1.1));
   var sun=new THREE.DirectionalLight(0xfff4dd,2.2);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);var sc=sun.shadow.camera;sc.left=-34;sc.right=34;sc.top=34;sc.bottom=-34;sc.near=1;sc.far=400;sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.04;S.add(sun);S.add(sun.target);
   st={ov:ov,R:R,S:S,cam:cam,ctl:ctl,sun:sun,H:H,raf:0,panelPts:[],terrain:null,play:null,solids:[],dyn:null,mode:'view',draw:[],sel:null,selV:null,google:false,tiles:null,dz:0};
@@ -38,7 +38,7 @@ var View3D=(function(){
   H.getGrid(c[0],c[1],half,0.5,function(f){info.textContent='Chargement du relevé LiDAR… '+Math.round(f*100)+' %';}).then(function(G){
    if(!G||G.z.filter(function(v){return v!=null;}).length<100){info.textContent='Relevé LiDAR inaccessible (internet ?). La vue 3D a besoin du LiDAR wallon.';return;}
    info.textContent='Chargement de la photo aérienne 2026…';
-   return loadTex(H,G,half).then(function(tex){st.G=G;st.tex=tex;st.half=half;base(G,tex);rebuild(true);});});
+   return loadTex(H,G,half).then(function(tex){st.G=G;st.tex=tex;st.half=half;base(G,tex);rebuild(true);if(opt.google&&st)ACT3.google();});});
  }
  /* décor fixe : grande photo de contexte, lumières */
  function base(G,tex){var n=G.n,zmin=1e9;G.z.forEach(function(v){if(v!=null&&v<zmin)zmin=v;});st.zmin=zmin;
@@ -101,14 +101,14 @@ var View3D=(function(){
  function tools(){if(!st)return;var h='';
   if(st.mode==='draw')h='<button data-v="undoD" class="btn s sm">↶ Point</button><button data-v="endD" class="btn sm g"'+(st.draw.length>=3?'':' disabled')+'>✓ Terminer</button><button data-v="cancel" class="btn s sm">✕ Annuler</button>';
   else if(st.mode==='edit')h=(st.selV!=null?'<button data-v="delV" class="btn s sm">🗑 Ce point</button>':'')+'<button data-v="undoE" class="btn s sm">↶</button><button data-v="endE" class="btn sm g">✓ Fini</button>';
-  else h='<button data-v="startD" class="btn sm">✏️ Dessiner un versant</button>'+(st.sel?'<button data-v="startE" class="btn s sm">✥ Modifier</button><button data-v="delP" class="btn s sm">🗑 Supprimer</button>':'');
+  else h=(st.H.gkey&&st.H.gkey()?'<button data-v="solar" class="btn sm">☀️ Versants Google</button>':'')+'<button data-v="startD" class="btn sm">✏️ Dessiner un versant</button>'+(st.sel?'<button data-v="startE" class="btn s sm">✥ Modifier</button><button data-v="delP" class="btn s sm">🗑 Supprimer</button>':'');
   st.ov.querySelector('[data-v=tools]').innerHTML=h;}
  function startGoogle(){var key=st.H.gkey&&st.H.gkey();if(!key){info('Pour la 3D photo de Google, colle ta clé Google dans ⚙️ Réglages (une seule fois).');return false;}
   if(!st.tiles){var T=new TilesRenderer('https://tile.googleapis.com/v1/3dtiles/root.json');T.registerPlugin(new GoogleCloudAuthPlugin({apiToken:key,autoRefreshToken:true}));
    var dl=new DRACOLoader();dl.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');T.registerPlugin(new GLTFExtensionsPlugin({dracoLoader:dl}));T.registerPlugin(new TileCompressionPlugin());
    T.registerPlugin(new ReorientationPlugin({lat:st.H.lat()*RAD,lon:st.H.lon()*RAD,height:st.zmin+45.5,up:'+y',recenter:true}));
-   T.errorTarget=2;T.setCamera(st.cam);T.setResolutionFromRenderer(st.cam,st.R);
-   T.addEventListener('load-model',function(e){e.scene.traverse(function(c){if(c.material){var m=c.material;c.material=new THREE.MeshLambertMaterial({map:m.map||null,color:m.map?0xffffff:(m.color||0xffffff)});c.castShadow=true;c.receiveShadow=true;}});st.needAlign=true;});
+   T.errorTarget=0.8;T.lruCache.minSize=1500;T.lruCache.maxSize=3000;T.setCamera(st.cam);T.setResolutionFromRenderer(st.cam,st.R);
+   T.addEventListener('load-model',function(e){e.scene.traverse(function(c){if(c.material&&c.material.map){c.material.map.anisotropy=8;c.material.map.colorSpace=THREE.SRGBColorSpace;}});st.needAlign=true;});
    T.addEventListener('load-error',function(){info('⚠ Google refuse la 3D : vérifie la clé et que « Map Tiles API » est activée (Réglages).');});
    var wrap=new THREE.Group();wrap.rotation.y=Math.PI;wrap.add(T.group);st.S.add(wrap);st.tiles=T;st.wrap=wrap;st.dz=0;st.aligned=0;
    st.alignT=setInterval(align,1500);}
@@ -118,8 +118,9 @@ var View3D=(function(){
   if(d.length<5)return;d.sort(function(p,q){return p-q;});var dz=d[Math.floor(d.length/2)];if(Math.abs(dz-st.dz)>0.05){st.dz=dz;if(st.over)st.over.position.y=st.google?dz:0;}st.aligned++;
   if(st.aligned>8&&st.alignT){clearInterval(st.alignT);st.alignT=null;}var at=st.tiles.getAttributions?st.tiles.getAttributions().filter(function(x){return x.type==='string';}).map(function(x){return x.value;}).join(' · '):'';st.ov.querySelector('[data-v=attr]').textContent='Google'+(at?' · '+at:'');}
  var ACT3={
-  google:function(){if(!st.google){if(!startGoogle())return;st.google=true;if(st.wrap)st.wrap.visible=true;info('3D photo de Google : chargement… Tu peux dessiner et déplacer les points directement dessus.');}else{st.google=false;if(st.wrap)st.wrap.visible=false;st.ov.querySelector('[data-v=attr]').textContent='';info('Maquette LiDAR.');}
+  google:function(){if(!st.google){if(!startGoogle())return;st.google=true;if(st.wrap)st.wrap.visible=true;var t=st.ctl.target;st.cam.position.set(t.x-9,t.y+20,t.z+24);st.R.toneMapping=THREE.NoToneMapping;info('3D photo de Google : chargement… Tu peux dessiner et déplacer les points directement dessus.');}else{st.google=false;st.R.toneMapping=THREE.ACESFilmicToneMapping;if(st.wrap)st.wrap.visible=false;st.ov.querySelector('[data-v=attr]').textContent='';info('Maquette LiDAR.');}
    var b=st.ov.querySelector('[data-v=google]');b.classList.toggle('on',st.google);rebuild();},
+  solar:function(){info('☀️ Google Solar analyse le toit…');var c=st.ctl.target;st.H.solar([c.x,-c.z]).then(function(list){if(!st)return;if(list&&list.length){st.sel=list[0].id;rebuild();info('☀️ '+list.length+' versant(s) trouvé(s) par Google Solar. Touche un toit puis ✥ Modifier pour ajuster.');}else info('Pas de nouveau versant trouvé (voir le message en bas de l’écran).');});},
   startD:function(){st.mode='draw';st.draw=[];st.sel=null;rebuild();info('Touche un coin de la gouttière (bas du versant) sur la maquette. Fais tourner la vue entre deux points si besoin.');},
   undoD:function(){st.draw.pop();rebuild();},
   cancel:function(){st.mode='view';st.draw=[];rebuild();info('Dessin annulé.');},
