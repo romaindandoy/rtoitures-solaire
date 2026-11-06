@@ -5138,18 +5138,19 @@ function layout(pan){
 }
 /* ================= Carte ================= */
 var map,layers,layerI=0,relief=null,panLayer,drawLayer,editLayer,drawPts=null,mode='idle',selPan=null,selV=null,curTab='toit';
-var ArcTiles=L.TileLayer.extend({getTileUrl:function(c){var R=6378137,w=2*Math.PI*R/Math.pow(2,c.z),x0=-Math.PI*R+c.x*w,y1=Math.PI*R-c.y*w;
- return GEO+this.options.svc+'/MapServer/export?bbox='+[x0,y1-w,x0+w,y1].map(function(v){return v.toFixed(2);}).join(',')+'&bboxSR=3857&imageSR=3857&size=256,256&format='+(this.options.fmt||'jpg')+'&transparent=true&f=image';}});
+var ArcTiles=L.TileLayer.extend({getTileUrl:function(c){var R=6378137,w=2*Math.PI*R/Math.pow(2,c.z+(this.options.zoomOffset||0)),x0=-Math.PI*R+c.x*w,y1=Math.PI*R-c.y*w;
+ var sz=this.options.tileSize||256;return GEO+this.options.svc+'/MapServer/export?bbox='+[x0,y1-w,x0+w,y1].map(function(v){return v.toFixed(2);}).join(',')+'&bboxSR=3857&imageSR=3857&size='+sz+','+sz+'&format='+(this.options.fmt||'jpg')+'&transparent=true&f=image';}});
+/* tuiles 512 px (4 fois moins de requêtes), zoom natif plafonné à la vraie finesse des photos (25 cm), nouvel essai si une tuile échoue */
+function arc(svc,o){var l=new ArcTiles('',Object.assign({svc:svc,tileSize:512,zoomOffset:-1,maxZoom:23,maxNativeZoom:20,keepBuffer:4,updateWhenZooming:false,crossOrigin:false},o||{}));
+ l.on('tileerror',function(e){var t=e.tile;t._r=(t._r||0)+1;if(t._r<=2)setTimeout(function(){t.src=l.getTileUrl(e.coords)+'&essai='+t._r;},600*t._r);});return l;}
 function initMap(){
  map=L.map('map',{zoomControl:false,attributionControl:true,maxZoom:23,tap:false}).setView([P.lat,P.lon],P.zoom||14);
  L.control.zoom({position:'topright'}).addTo(map);
  layers=[
-  {n:'Photo aérienne Wallonie – avril 2026',l:new ArcTiles('',{svc:'IMAGERIE/ORTHO_2026_PRINTEMPS',maxZoom:23,maxNativeZoom:21,attribution:'© SPW 2026'})},
-  {n:'Photo aérienne Wallonie – été 2025 (partielle)',l:new ArcTiles('',{svc:'IMAGERIE/ORTHO_2025_ETE',maxZoom:23,maxNativeZoom:21,attribution:'© SPW 2025'})},
-  {n:'Photo satellite Esri',l:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:23,maxNativeZoom:19,attribution:'Esri, Maxar'})},
-  {n:'Plan OpenStreetMap',l:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:23,maxNativeZoom:19,attribution:'© OpenStreetMap'})}];
+  {n:'Photo aérienne Wallonie – avril 2026',l:arc('IMAGERIE/ORTHO_2026_PRINTEMPS',{attribution:'© SPW 2026'})},
+  {n:'Photo aérienne Wallonie – 2024',l:arc('IMAGERIE/ORTHO_2024',{attribution:'© SPW 2024'})}];
  layers[0].l.addTo(map);
- relief=new ArcTiles('',{svc:'RELIEF/WALLONIE_MNS_2021_2022_HILLSHADE',maxZoom:23,maxNativeZoom:21,opacity:0.55,fmt:'png'});
+ relief=arc('RELIEF/WALLONIE_MNS_2021_2022_HILLSHADE',{opacity:0.55,fmt:'png'});
  panLayer=L.layerGroup().addTo(map);drawLayer=L.layerGroup().addTo(map);editLayer=L.layerGroup().addTo(map);
  map.on('click',function(e){if(mode==='solar'){mode='idle';tools();solarAt([e.latlng.lat,e.latlng.lng]);return;}if(mode==='pick'){mode='idle';tools();ACT.detectAt([e.latlng.lat,e.latlng.lng]);return;}if(mode==='draw'){addPt([e.latlng.lat,e.latlng.lng]);}else if(selV!=null&&mode==='edit'){selV=null;drawEdit();tools();}});
  map.on('move',function(){if(mode==='draw'){loupeShow(map.getCenter());var lb=$('#mlen');if(lb&&drawPts&&drawPts.length){var c=map.getCenter();lb.textContent=nf(edgeLen(drawPts[drawPts.length-1],[c.lat,c.lng]),2)+' m';lb.style.display='block';}}});
@@ -5159,7 +5160,7 @@ function cross(on){$('#cross').style.display=on?'block':'none';}
 var loupe=null,loupeL=null,ORTHO=true;
 function loupeShow(ll){var el=$('#loupe');if(!ll){el.style.display='none';return;}el.style.display='block';$('#mstat').style.display='none';
  if(!loupe){loupe=L.map('loupemap',{zoomControl:false,attributionControl:false,dragging:false,touchZoom:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,maxZoom:24});}
- var base=layers[layerI];if(loupeL!==base){if(loupeL&&loupeL._lp)loupe.removeLayer(loupeL._lp);var lp=layerI<2?new ArcTiles('',{svc:base.l.options.svc,maxZoom:24,maxNativeZoom:21}):L.tileLayer(base.l._url,{maxZoom:24,maxNativeZoom:19});lp.addTo(loupe);base._lp=lp;loupeL=base;}
+ var base=layers[layerI];if(loupeL!==base){if(loupeL&&loupeL._lp)loupe.removeLayer(loupeL._lp);var lp=arc(base.l.options.svc,{maxZoom:24});lp.addTo(loupe);base._lp=lp;loupeL=base;}
  loupe.invalidateSize();loupe.setView(ll,Math.min(24,map.getZoom()+2),{animate:false});
  if(!loupe._ov){loupe._ov=L.layerGroup().addTo(loupe);}loupe._ov.clearLayers();
  var p=selPan&&P.pans.find(function(x){return x.id===selPan;}),src=mode==='draw'?drawPts:(p?p.pts:null);if(src&&src.length>1)L.polygon(src,{color:'#facc15',weight:2,fill:false,interactive:false}).addTo(loupe._ov);}
@@ -5464,7 +5465,7 @@ function civHtml(){var c=CO(),d=P.devis,L=devisLines()||[],vat=+P.client.vat||6,
  '<table class="ctot"><tr><td>Total HTVA</td><td>'+civN(ht)+' €</td></tr><tr><td>Total TVA</td><td>'+civN(tva)+' €</td></tr><tr><td>Total TVAC</td><td>'+civN(ttc)+' €</td></tr><tr><td>Acompte</td><td>€</td></tr><tr class="cnet"><td>TOTAL</td><td>'+civN(ttc)+' €</td></tr></table></div>'+
  '<div class="csig"><div><b>Pour accord</b><br>Date et signature du client, précédées de la mention « Bon pour accord »</div><div class="cbox">'+(d.sig?'<img src="'+d.sig+'" alt="Signature">':'')+'</div></div>'+(d.sig?'<div class="csok">Bon pour accord — '+esc(d.sigName)+(d.sigPlace?', à '+esc(d.sigPlace):'')+', le '+civDate(d.sigDate)+' à '+esc(d.sigTime)+'</div>':'')+
  '<div class="cfoot"><p>Cette offre est valable pour une durée de 3 mois à compter de sa date d’émission.</p><p><span class="red">Conditions générales de paiement :</span> '+esc(c.cgv)+'</p><p class="big">'+esc(c.acompteTxt)+'</p><p><b>Pour acceptation merci de retourner ce devis et conditions générales de vente signé avec la mention "Bon pour Accord".</b></p><p><b>'+esc(c.reserveTxt)+'</b></p></div></div>';}
-var VERSION='7 – 6 nov. 2026';
+var VERSION='8 – 6 nov. 2026';
 function vSync(){var c=Sync.cfg();
  if(c.token)return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><div class="okb">Activée et chiffrée 🔒 : tout ce que tu fais ici se retrouve sur tes autres appareils, et inversement (toutes les 15 secondes et à chaque ouverture). GitHub ne voit qu’un bloc illisible.</div><p class="note" id="syncst">'+esc(Sync.status()||'')+'</p><div class="btns"><button class="btn" data-a="syncNow">↻ Synchroniser maintenant</button><button class="btn s" data-a="syncOff">Déconnecter cet appareil</button></div></div>';
  return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><p class="note">Tes études, prix et réglages sont gardés dans un coffre privé sur ton compte GitHub (gratuit). À faire <b>une seule fois</b> :</p>'+
