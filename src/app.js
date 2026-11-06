@@ -427,6 +427,7 @@ function civHtml(){var c=CO(),d=P.devis,L=devisLines()||[],vat=+P.client.vat||6,
  '<table class="ctot"><tr><td>Total HTVA</td><td>'+civN(ht)+' €</td></tr><tr><td>Total TVA</td><td>'+civN(tva)+' €</td></tr><tr><td>Total TVAC</td><td>'+civN(ttc)+' €</td></tr><tr><td>Acompte</td><td>€</td></tr><tr class="cnet"><td>TOTAL</td><td>'+civN(ttc)+' €</td></tr></table></div>'+
  '<div class="csig"><div><b>Pour accord</b><br>Date et signature du client, précédées de la mention « Bon pour accord »</div><div class="cbox">'+(d.sig?'<img src="'+d.sig+'" alt="Signature">':'')+'</div></div>'+(d.sig?'<div class="csok">Bon pour accord — '+esc(d.sigName)+(d.sigPlace?', à '+esc(d.sigPlace):'')+', le '+civDate(d.sigDate)+' à '+esc(d.sigTime)+'</div>':'')+
  '<div class="cfoot"><p>Cette offre est valable pour une durée de 3 mois à compter de sa date d’émission.</p><p><span class="red">Conditions générales de paiement :</span> '+esc(c.cgv)+'</p><p class="big">'+esc(c.acompteTxt)+'</p><p><b>Pour acceptation merci de retourner ce devis et conditions générales de vente signé avec la mention "Bon pour Accord".</b></p><p><b>'+esc(c.reserveTxt)+'</b></p></div></div>';}
+var VERSION='6 – 6 nov. 2026';
 function vSync(){var c=Sync.cfg();
  if(c.token)return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><div class="okb">Activée et chiffrée 🔒 : tout ce que tu fais ici se retrouve sur tes autres appareils, et inversement (toutes les 15 secondes et à chaque ouverture). GitHub ne voit qu’un bloc illisible.</div><p class="note" id="syncst">'+esc(Sync.status()||'')+'</p><div class="btns"><button class="btn" data-a="syncNow">↻ Synchroniser maintenant</button><button class="btn s" data-a="syncOff">Déconnecter cet appareil</button></div></div>';
  return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><p class="note">Tes études, prix et réglages sont gardés dans un coffre privé sur ton compte GitHub (gratuit). À faire <b>une seule fois</b> :</p>'+
@@ -439,7 +440,7 @@ function vCompany(){var c=DB.company||{},f=function(l,k,ph){return inp(l,'compan
  return '<div class="card"><h3>🏢 Mon entreprise (en-tête des devis)</h3><p class="note">Ces coordonnées restent sur tes appareils (et dans la synchro chiffrée), jamais dans le programme en ligne.</p>'+
  '<div class="row">'+f('Nom de l’entreprise','name')+f('Responsable','owner')+'</div>'+f('Adresse','address','Rue, n°, CP Commune')+'<div class="row">'+f('N° TVA','vat')+f('GSM','phone')+'</div><div class="row">'+f('IBAN','iban')+f('BIC','bic')+'</div><div class="row">'+f('E-mail','email')+f('Facebook / site','facebook')+'</div>'+
  '<div class="btns">'+(c.logo?'<img src="'+c.logo+'" style="height:40px;border-radius:6px">':'')+'<label class="btn s sm"><input type="file" accept="image/*" id="logoin" style="display:none">🖼 Logo</label><label class="btn s sm"><input type="file" accept=".json" id="coin" style="display:none">⬆ Importer mes coordonnées</label></div></div>';}
-function vPrix(){var pr=DB.prices,h=vSync()+vCompany()+vGoogle()+'<div class="card"><h3>Tes prix de vente (HTVA)</h3><p class="note">Ils servent aux scénarios et au devis. Ce sont des prix de départ du marché belge 2026 : mets les tiens.</p>';
+function vPrix(){var pr=DB.prices,h='<p class="note" style="text-align:right;margin:0 4px 6px">R Toitures Solaire · version '+VERSION+'</p>'+vSync()+vCompany()+vGoogle()+'<div class="card"><h3>Tes prix de vente (HTVA)</h3><p class="note">Ils servent aux scénarios et au devis. Ce sont des prix de départ du marché belge 2026 : mets les tiens.</p>';
  pr.mods.forEach(function(m,i){h+='<div class="pan"><div class="row">'+inp('Panneau','prices.mods.'+i+'.n',{db:1,rr:1})+inp('Puissance (Wc)','prices.mods.'+i+'.wc',{db:1,num:1,rr:1})+'</div><div class="row">'+inp('Longueur (m)','prices.mods.'+i+'.L',{db:1,num:1,rr:1})+inp('Largeur (m)','prices.mods.'+i+'.W',{db:1,num:1,rr:1})+inp('Prix (€/pce)','prices.mods.'+i+'.p',{db:1,num:1,rr:1})+'</div></div>';});
  h+='<div class="btns"><button class="btn s sm" data-a="addMod">＋ Panneau</button></div><div class="row">'+inp('Fixation (€/panneau)','prices.struct',{db:1,num:1})+inp('Pose (€/panneau)','prices.pose',{db:1,num:1})+inp('Micro-onduleur (€/pce)','prices.micro',{db:1,num:1})+'</div>'+
  '<div class="row">'+inp('Onduleur : base (€)','prices.invBase',{db:1,num:1})+inp('Onduleur : par kVA (€)','prices.invKva',{db:1,num:1})+inp('Supplément hybride (€)','prices.hybrid',{db:1,num:1})+'</div>'+
@@ -521,6 +522,7 @@ var ACT={
  syncOn:function(){var t=($('#synctok').value||'').trim(),pw=$('#syncpw').value||'';if(!/^(ghp_|github_pat_)[A-Za-z0-9_]{20,}$/.test(t)){toast('Ce n’est pas une clé GitHub valide (ghp_…)');return;}if(pw.length<8){toast('Mot de passe : 8 caractères minimum');return;}Sync.setCfg({token:t,pass:pw});toast('Connexion à GitHub…');Sync.run().then(function(){render();Sync.start();});},
  gkeySave:function(){var k=($('#gkeyin').value||'').trim();if(!/^AIza[0-9A-Za-z_\-]{30,}$/.test(k)){toast('Ce n’est pas une clé Google valide (AIza…)');return;}try{localStorage.setItem('rts_gkey',k);}catch(e){}toast('✓ Clé Google enregistrée');render();},
  gkeyDel:function(){try{localStorage.removeItem('rts_gkey');}catch(e){}render();},
+ goSync:function(){tab('prix');setTimeout(function(){var e=$('#v-prix .card');if(e)e.scrollIntoView({behavior:'smooth'});},50);},
  syncNow:function(){Sync.run().then(render);},
  syncOff:function(){if(!confirm('Déconnecter la synchro sur cet appareil ? Tes données restent ici et sur GitHub.'))return;Sync.setCfg({});render();},
  newS:function(){saveNow();P=newStudy();RES=null;W=null;GRID=null;selPan=null;closeModal();map.setView([P.lat,P.lon],14);drawPans();tab('toit');},
@@ -621,7 +623,7 @@ document.addEventListener('change',function(e){var el=e.target;
 window.addEventListener('resize',fitDoc);
 $('#q').addEventListener('keydown',function(e){if(e.key==='Enter')ACT.geo();});
 /* ================= Démarrage ================= */
-load();P=DB.studies[0]?DB.studies[0]:newStudy();setTimeout(function(){Sync.start();},800);
+load();P=DB.studies[0]?DB.studies[0]:newStudy();setTimeout(function(){Sync.start();},800);(function(){var d=$('#syncdot');if(d&&!Sync.on())d.textContent='☁️ Synchro';})();
 initMap();if(P.pans.length){map.setView([P.mlat||P.lat,P.mlon||P.lon],P.zoom||19);}drawPans();tab('toit');
 window.__RT={get map(){return map;},get P(){return P;},get RES(){return RES;},get W(){return W;},ACT:ACT,layout:layout,parseCSV:parseCSV,tab:tab};
 })();
