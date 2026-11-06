@@ -103,7 +103,7 @@ function layout(pan){
  pan.panels=best;pan.pw=pw;pan.ph=ph;
 }
 /* ================= Carte ================= */
-var map,layers,layerI=0,relief=null,panLayer,drawLayer,editLayer,drawPts=null,mode='idle',selPan=null,selV=null,curTab='toit';
+var DELALL=null,map,layers,layerI=0,relief=null,panLayer,drawLayer,editLayer,drawPts=null,mode='idle',selPan=null,selV=null,curTab='toit';
 var ArcTiles=L.TileLayer.extend({getTileUrl:function(c){var R=6378137,w=2*Math.PI*R/Math.pow(2,c.z+(this.options.zoomOffset||0)),x0=-Math.PI*R+c.x*w,y1=Math.PI*R-c.y*w;
  var sz=this.options.tileSize||256;return GEO+this.options.svc+'/MapServer/export?bbox='+[x0,y1-w,x0+w,y1].map(function(v){return v.toFixed(2);}).join(',')+'&bboxSR=3857&imageSR=3857&size='+sz+','+sz+'&format='+(this.options.fmt||'jpg')+'&transparent=true&f=image';}});
 /* tuiles 512 px (4 fois moins de requêtes), zoom natif plafonné à la vraie finesse des photos (25 cm), nouvel essai si une tuile échoue */
@@ -182,7 +182,7 @@ function tools(){var h='';
  else if(mode==='edit')h=(selV!=null?'<div class="nudge"><button data-a="nudge" data-d="0,1">▲</button><button data-a="nudge" data-d="-1,0">◀</button><button data-a="nudge" data-d="1,0">▶</button><button data-a="nudge" data-d="0,-1">▼</button></div><button class="btn sm" data-a="vHere">📍 Au viseur</button><button class="btn s sm" data-a="vDel">🗑</button>':'<span class="btn s sm" style="pointer-events:none">Touche ou glisse un point</span>')+'<button class="btn s sm" data-a="undo"'+(HIST.length?'':' disabled')+'>↶</button><button class="btn s sm'+(SQUARE?' on':'')+'" data-a="square">⟂</button><button class="btn sm g" data-a="endEdit">✓ Fini</button>';
  else if(mode==='pick')h='<button class="btn s sm" data-a="detect">✕ Annuler</button>';
  else if(mode==='solar')h='<button class="btn s sm" data-a="solar">✕ Annuler</button>';
- else if(curTab==='toit')h=(gkey()?'<button class="btn sm" data-a="solar">☀️ Google Solar</button>':'')+'<button class="btn sm" data-a="detect">🪄 Détecter le toit</button><button class="btn sm" data-a="startDraw">✏️ Dessiner</button>'+(selPan?'<button class="btn s sm" data-a="startEdit">✥ Modifier</button><button class="btn s sm" data-a="delSel">🗑</button>':'')+(P.pans.length?'<button class="btn s sm" data-a="fit">⤢</button>':'');
+ else if(curTab==='toit')h=(gkey()?'<button class="btn sm" data-a="solar">☀️ Google Solar</button>':'')+'<button class="btn sm" data-a="detect">🪄 Détecter le toit</button><button class="btn sm" data-a="startDraw">✏️ Dessiner</button>'+(selPan?'<button class="btn s sm" data-a="startEdit">✥ Modifier</button><button class="btn s sm" data-a="delSel">🗑</button>':'')+(P.pans.length?'<button class="btn s sm" data-a="fit">⤢</button>':'')+(P.pans.length>1?'<button class="btn s sm" data-a="delAll">🗑 Tout effacer</button>':'')+(DELALL&&DELALL.id===P.id&&!P.pans.length?'<button class="btn sm" data-a="undoAll">↶ Remettre les versants</button>':'');
  else if(curTab==='pv')h='<button class="btn sm" data-a="relayout">↻ Recalepiner</button><span class="btn s sm" style="pointer-events:none">Touche un panneau pour l’enlever</span>';
  $('#maptools').innerHTML=h;cross(mode==='draw'||(mode==='edit'&&selV!=null));loupeAuto();}
 function fit(){if(!P.pans.length)return;var b=L.latLngBounds([]);P.pans.forEach(function(p){p.pts.forEach(function(q){b.extend(q);});});map.fitBounds(b,{padding:[40,40],maxZoom:21});}
@@ -438,7 +438,7 @@ function civHtml(){var c=CO(),d=P.devis,L=devisLines()||[],vat=+P.client.vat||6,
  '<table class="ctot"><tr><td>Total HTVA</td><td>'+civN(ht)+' €</td></tr><tr><td>Total TVA</td><td>'+civN(tva)+' €</td></tr><tr><td>Total TVAC</td><td>'+civN(ttc)+' €</td></tr><tr><td>Acompte</td><td>€</td></tr><tr class="cnet"><td>TOTAL</td><td>'+civN(ttc)+' €</td></tr></table></div>'+
  '<div class="csig"><div><b>Pour accord</b><br>Date et signature du client, précédées de la mention « Bon pour accord »</div><div class="cbox">'+(d.sig?'<img src="'+d.sig+'" alt="Signature">':'')+'</div></div>'+(d.sig?'<div class="csok">Bon pour accord — '+esc(d.sigName)+(d.sigPlace?', à '+esc(d.sigPlace):'')+', le '+civDate(d.sigDate)+' à '+esc(d.sigTime)+'</div>':'')+
  '<div class="cfoot"><p>Cette offre est valable pour une durée de 3 mois à compter de sa date d’émission.</p><p><span class="red">Conditions générales de paiement :</span> '+esc(c.cgv)+'</p><p class="big">'+esc(c.acompteTxt)+'</p><p><b>Pour acceptation merci de retourner ce devis et conditions générales de vente signé avec la mention "Bon pour Accord".</b></p><p><b>'+esc(c.reserveTxt)+'</b></p></div></div>';}
-var VERSION='10 – 6 nov. 2026';
+var VERSION='11 – 6 nov. 2026';
 function vSync(){var c=Sync.cfg();
  if(c.token)return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><div class="okb">Activée et chiffrée 🔒 : tout ce que tu fais ici se retrouve sur tes autres appareils, et inversement (toutes les 15 secondes et à chaque ouverture). GitHub ne voit qu’un bloc illisible.</div><p class="note" id="syncst">'+esc(Sync.status()||'')+'</p><div class="btns"><button class="btn" data-a="syncNow">↻ Synchroniser maintenant</button><button class="btn s" data-a="syncOff">Déconnecter cet appareil</button></div></div>';
  return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><p class="note">Tes études, prix et réglages sont gardés dans un coffre privé sur ton compte GitHub (gratuit). À faire <b>une seule fois</b> :</p>'+
@@ -511,6 +511,8 @@ var ACT={
  solar:function(){if(!gkey()){toast('Il faut la clé Google (⚙️ Réglages)',4000);return;}if(mode==='solar'){mode='idle';stat();tools();return;}mode='solar';stat('☀️ Touche la maison sur la carte');tools();},
  solarAt:function(ll){return solarAt(ll);},
  delPan:function(el){if(!confirm('Supprimer ce versant ?'))return;P.pans=P.pans.filter(function(p){return p.id!==el.dataset.id;});dirty();save();drawPans();render();},
+ delAll:function(){var n=P.pans.length;if(!n)return;if(!confirm('Supprimer les '+n+' versants de cette étude ?'))return;if(mode==='edit'){mode='idle';selV=null;editLayer.clearLayers();}DELALL={id:P.id,pans:JSON.parse(JSON.stringify(P.pans))};P.pans=[];selPan=null;dirty();save();drawPans();render();toast('🗑 '+n+' versants supprimés · « ↶ Remettre les versants » pour annuler',5000);},
+ undoAll:function(){if(!DELALL||DELALL.id!==P.id)return;P.pans=DELALL.pans;DELALL=null;dirty();save();drawPans();render();toast('Versants remis ✓');},
  delSel:function(){var p=P.pans.find(function(x){return x.id===selPan;});if(!p)return;if(!confirm('Supprimer « '+p.name+' » ?'))return;P.pans=P.pans.filter(function(x){return x.id!==p.id;});selPan=null;dirty();save();drawPans();render();toast('Versant supprimé');},
  selEdit:function(el){selPan=el.dataset.id;window.scrollTo(0,0);ACT.startEdit();},
  lidar:function(el){var p=P.pans.find(function(x){return x.id===el.dataset.id;});if(p){p.zc=null;measure(p);}},
