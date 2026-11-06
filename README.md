@@ -1,4 +1,4 @@
-# R Toitures Solaire
+# R Toitures Photovoltaïque
 
 Outil d'étude photovoltaïque pour couvreur : adresse → versants du toit (LiDAR Wallonie, photos aériennes SPW 2026, 3D photo Google en option) → panneaux → consommation → étude heure par heure sur 5 ans de météo réelle → devis signé.
 
