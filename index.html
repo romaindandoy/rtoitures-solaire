@@ -5093,7 +5093,7 @@ var Sync=(function(){var KEY='rts_sync',FILE='rts-chiffre.json',DESC='rts-sync-v
  return {run:run,later:later,start:start,cfg:cfg,setCfg:setCfg,status:function(){return status;},on:function(){return !!cfg().token;}};})();
 function onRemote(changedStudy){RES=null;GRID=null;if(changedStudy!==null){selPan=null;if(mode!=='idle'){mode='idle';drawPts=null;drawLayer.clearLayers();editLayer.clearLayers();stat();}drawPans();}render();if(changedStudy!==null)toast('🔄 Mis à jour depuis ton autre appareil');}
 function uid(){return Math.random().toString(36).slice(2,9);}
-function newStudy(){return {id:uid(),created:new Date().toISOString().slice(0,10),client:{name:'',addr:'',email:'',gsm:'',vat:6,phase:'mono'},lat:50.2935,lon:5.0960,zoom:14,pans:[],modIdx:0,
+function newStudy(){return {link:{ref:'',site:'',code:''},id:uid(),created:new Date().toISOString().slice(0,10),client:{name:'',addr:'',email:'',gsm:'',vat:6,phase:'mono'},lat:50.2935,lon:5.0960,zoom:14,pans:[],modIdx:0,
  cons:{annual:3500,profile:'actif',pac:0,vekm:0,vewin:'nuit',flex:0,real:null,realInfo:''},choice:null,devis:{num:'',date:new Date().toISOString().slice(0,10),lines:null,sig:null,sigName:'',sigDate:'',sigTime:'',sigPlace:''}};}
 var P;
 /* ================= Utilitaires ================= */
@@ -5367,9 +5367,9 @@ function inp(label,path,o){o=o||{};var v=getP(o.db?DB:P,path);var at=(o.db?'data
  if(o.opts)return '<label class="f">'+label+'<select '+at+'>'+o.opts.map(function(x){return '<option value="'+esc(x[0])+'"'+(String(v)===String(x[0])?' selected':'')+'>'+esc(x[1])+'</option>';}).join('')+'</select></label>';
  if(o.area)return '<label class="f">'+label+'<textarea '+at+'>'+esc(v)+'</textarea></label>';
  return '<label class="f">'+label+'<input '+at+' type="'+(o.num?'number':'text')+'"'+(o.num?' inputmode="decimal" step="any"':'')+' value="'+esc(v==null?'':v)+'"'+(o.ph?' placeholder="'+esc(o.ph)+'"':'')+'></label>';}
-function render(){if(!P)return;$('#hpn').textContent=(P.client.name||'Nouvelle étude')+(P.client.addr?' · '+P.client.addr:'');
+function render(){if(!P)return;$('#hpn').textContent=(P.link&&P.link.ref?'🔗 '+P.link.ref+' · ':'')+(P.client.name||'Nouvelle étude')+(P.client.addr?' · '+P.client.addr:'');
  var f={toit:vToit,pv:vPV,conso:vConso,etude:vEtude,devis:vDevis,prix:vPrix}[curTab];V(curTab).innerHTML=f();tools();if(curTab==='devis')setTimeout(fitDoc,0);}
-function vToit(){var h='<div class="card"><h3>Client</h3><div class="row">'+inp('Nom du client','client.name',{ph:'ex. Dupont Marc'})+inp('GSM','client.gsm')+'</div>'+inp('Adresse du chantier','client.addr',{ph:'Rue, n°, CP commune'})+'<div class="row">'+inp('E-mail','client.email')+inp('TVA applicable','client.vat',{opts:[[6,'6 % (logement de plus de 10 ans)'],[21,'21 % (logement récent ou pro)']],rr:1})+'</div>'+inp('Raccordement électrique','client.phase',{opts:[['mono','Monophasé (max. 5 kVA d’onduleur)'],['tri','Triphasé']],rr:1})+'</div>';
+function vToit(){var h='<div class="card"><h3>Client</h3><div class="row">'+inp('Nom du client','client.name',{ph:'ex. Dupont Marc'})+inp('GSM','client.gsm')+'</div>'+inp('Adresse du chantier','client.addr',{ph:'Rue, n°, CP commune'})+'<div class="row">'+inp('E-mail','client.email')+inp('TVA applicable','client.vat',{opts:[[6,'6 % (logement de plus de 10 ans)'],[21,'21 % (logement récent ou pro)']],rr:1})+'</div>'+'<div class="row">'+inp('Référence chantier (Rtoitures App)','link.ref',{ph:'ex. CH-2026-001',rr:1})+'</div>'+inp('Raccordement électrique','client.phase',{opts:[['mono','Monophasé (max. 5 kVA d’onduleur)'],['tri','Triphasé']],rr:1})+'</div>';
  h+='<div class="card"><h3>Versants de toiture</h3>';
  if(!P.pans.length)h+='<p class="note">1. Cherche l’adresse (photo aérienne d’avril 2026).<br>2. <b>🪄 Détecter le toit</b> puis touche la maison : les versants sont trouvés tout seuls grâce au relevé laser LiDAR. Ou <b>✏️ Dessiner</b> : vise chaque coin avec ✛ et touche « ＋ Point », gouttière en premier.<br>3. Sélectionne un versant puis <b>✥ Modifier</b> pour déplacer ses points. Ajoute autant de versants que tu veux.<br>4. <b>⛰</b> affiche le relief LiDAR (les arêtes ressortent), <b>🧊</b> ouvre la maquette 3D avec les ombres.</p>';
  P.pans.forEach(function(p){var st=panStats(p),sel=selPan===p.id;
@@ -5433,9 +5433,16 @@ function vEtude(){if(!RES)return '<div class="card"><h3>Calcul de l’étude</h3
  return h;}
 /* ---- devis ---- */
 function devisLines(){if(!P.devis.lines){if(!RES||!RES.mine)return null;P.devis.lines=costLines(P.choice.n,P.choice.bat,P.choice.micro);}return P.devis.lines;}
+function solPayload(){var R=RES&&RES.mine,L=devisLines()||[],m=MOD();
+ var o={v:1,id:P.id,ref:(P.link&&P.link.ref)||'',site:(P.link&&P.link.site)||'',client:P.client.name,addr:P.client.addr,vat:+P.client.vat||6,objet:'Installation de panneaux photovoltaïques'+(R?' de '+nf(R.kwc,2)+' kWc':''),lines:L.map(function(l){return l.t==='titre'?{t:'titre',d:l.d}:{d:l.d,u:l.u,q:+l.q||0,p:+l.p||0};}),
+  sum:R?{kwc:r2(R.kwc),n:R.n,bat:R.bat,prod:Math.round(R.A.prod),autoc:r2(R.A.autoc),save1:Math.round(R.save1),inv:Math.round(R.inv),pay:R.F.pay!=null?r2(R.F.pay):null}:{}};
+ var b=new TextEncoder().encode(JSON.stringify(o)),t='';for(var i=0;i<b.length;i++)t+=String.fromCharCode(b[i]);return 'RTS1:'+btoa(t);}
+function vSendApp(){var ref=P.link&&P.link.ref;
+ return '<div class="card" style="border:2px solid #fed7aa"><h3>🔗 Rtoitures App'+(ref?' · chantier '+esc(ref):'')+'</h3>'+(ref?'<p class="note">Le devis officiel (numéro, client, signature) se fait dans ton app, pour garder une seule numérotation. Envoie-lui cette étude :</p>':'<p class="note">Pas encore relié à un chantier : ouvre cette étude depuis le chantier dans Rtoitures App (bouton « 🌐 R Toitures Solaire »), ou tape la référence chantier dans l’onglet Toit.</p>')+
+ '<div class="btns"><button class="btn" data-a="sendApp">📤 Envoyer à Rtoitures App</button></div><p class="note">1. Touche le bouton : le code de l’étude est copié. 2. Dans l’app : chantier '+esc(ref||'…')+' → « ☀️ Étude solaire » → « 📥 Importer l’étude » → colle. Si tu renvoies une étude modifiée, le même devis brouillon est mis à jour, sans doublon.</p><textarea id="solOut" readonly style="width:100%;height:56px;font-size:11px;display:none"></textarea></div>';}
 function vDevis(){if(!CO().name&&!CO().iban){return '<div class="card"><h3>Devis</h3><div class="warn">Ajoute d’abord les coordonnées de ton entreprise dans ⚙️ Réglages → « Mon entreprise » (ou importe le fichier mon-entreprise-rtoitures.json).</div><div class="btns"><button class="btn" data-tab="prix">⚙️ Réglages</button></div></div>';}var L=devisLines();if(!L)return '<div class="card"><h3>Devis</h3><p class="note">Fais d’abord le calcul dans l’onglet Étude : le devis se remplit avec la configuration retenue.</p><div class="btns"><button class="btn" data-a="goEtude">📈 Aller à l’étude</button></div></div>';
  if(!P.devis.num)P.devis.num='DE'+String(new Date().getFullYear()).slice(2)+String(DB.seq).padStart(3,'0');
- var h='<div class="card"><h3>Devis</h3><div class="row">'+inp('N° de devis','devis.num',{rr:1})+inp('Date','devis.date',{rr:1})+inp('Code client','devis.code')+'</div>'+
+ var h=vSendApp()+'<div class="card"><h3>Devis'+(P.link&&P.link.ref?' (projet)':'')+'</h3><div class="row">'+inp('N° de devis','devis.num',{rr:1})+inp('Date','devis.date',{rr:1})+inp('Code client','devis.code')+'</div>'+
  L.map(function(l,i){return '<div class="dl"><textarea data-l="'+i+'" data-f="d" rows="2"'+(l.t==='titre'?' style="font-weight:700"':'')+'>'+esc(l.d)+'</textarea>'+(l.t==='titre'?'<button class="btn s sm" data-a="delLine" data-i="'+i+'">✕</button>':'<div class="dlr"><label>Unité<input data-l="'+i+'" data-f="u" value="'+esc(l.u||'')+'"></label><label>Qté<input data-l="'+i+'" data-f="q" inputmode="decimal" value="'+esc(l.q)+'"></label><label>P.U. HTVA<input data-l="'+i+'" data-f="p" inputmode="decimal" value="'+esc(l.p)+'"></label><b>'+eur((+l.q||0)*(+l.p||0))+'</b><button class="btn s sm" data-a="delLine" data-i="'+i+'">✕</button></div>')+'</div>';}).join('')+
  '<div class="btns"><button class="btn s sm" data-a="addLine">＋ Ligne</button><button class="btn s sm" data-a="regen">↻ Reprendre de l’étude</button></div>'+
  '<p class="note">Total : <b>'+eur(linesHT(L))+' HTVA</b> · '+eur(linesHT(L)*(1+P.client.vat/100))+' TVAC ('+P.client.vat+' %)</p>'+
@@ -5456,8 +5463,8 @@ function civHtml(){var c=CO(),d=P.devis,L=devisLines()||[],vat=+P.client.vat||6,
  body+=row('<div class="cment">TVA '+vat+' %'+(vat===6?' : le client atteste que l’habitation est utilisée principalement comme logement privé et a été occupée pour la première fois il y a au moins 10 ans.':'.')+'</div>');
  return '<div class="civ"><div class="chd"><div class="cl"><div class="clogo">'+(c.logo&&c.logo.indexOf('data:')===0?'<img src="'+c.logo+'" alt="">':'<div class="clogot">'+esc(String(c.name||'').toUpperCase())+'</div>')+'</div><div class="cme"><b>'+esc(String(c.owner).toUpperCase())+'</b><b>'+esc(String(c.address).split(/,\s*(?=\d{4}\s)/)[0]||'')+'</b><b>'+esc((String(c.address).match(/\d{4}\s.*$/)||[''])[0])+'</b>'+
   '<table class="cmt"><tr><td>GSM</td><td>: '+esc(c.phone)+'</td></tr><tr><td>BTW</td><td>: '+esc(c.vat)+'</td></tr><tr><td><b>N° de compte</b></td><td>: '+esc(c.iban)+'  BIC : '+esc(c.bic)+'</td></tr><tr><td><b>Facebook</b></td><td>: '+esc(c.facebook)+'</td></tr><tr><td><b>E-mail</b></td><td>: '+esc(c.email)+'</td></tr></table></div></div>'+
-  '<div class="crt"><table class="cbx"><tr><th>Devis N°</th><th>Date</th><th>Echéance</th><th>Code client</th></tr><tr><td><b>'+esc(d.num)+'</b></td><td>'+civDate(d.date)+'</td><td>'+civDate(due.toISOString().slice(0,10))+'</td><td>'+esc(d.code||'')+'</td></tr></table>'+
-  '<table class="cbx cpay"><tr><th>A mentioner lors de votre paiement</th></tr><tr><td><b>'+esc(d.num)+'</b></td></tr></table>'+
+  '<div class="crt"><table class="cbx"><tr><th>Devis N°</th><th>Date</th><th>Echéance</th><th>Code client</th></tr><tr><td><b>'+esc(P.link&&P.link.ref?'PROJET':d.num)+'</b></td><td>'+civDate(d.date)+'</td><td>'+civDate(due.toISOString().slice(0,10))+'</td><td>'+esc(d.code||'')+'</td></tr></table>'+
+  '<table class="cbx cpay"><tr><th>A mentioner lors de votre paiement</th></tr><tr><td><b>'+esc(P.link&&P.link.ref?P.link.ref:d.num)+'</b></td></tr></table>'+
   '<div class="ccli"><i class="k1"></i><i class="k2"></i><i class="k3"></i><i class="k4"></i><b>'+esc(P.client.name)+'</b>'+addr.map(function(x){return '<b>'+esc(x)+'</b>';}).join('')+'<b>Belgique</b></div></div></div>'+
  '<div class="cti"><span class="ctt">DEVIS</span><span>N° Entreprise : NA</span><span></span></div>'+
  '<table class="clin"><thead><tr><th>Désignation</th><th>Unité</th><th>Quantité</th><th>P.U. HTVA</th><th>Montant HTVA</th><th>Remise</th><th>Taux</th></tr></thead><tbody>'+body+'<tr class="cfill"><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table>'+
@@ -5465,7 +5472,7 @@ function civHtml(){var c=CO(),d=P.devis,L=devisLines()||[],vat=+P.client.vat||6,
  '<table class="ctot"><tr><td>Total HTVA</td><td>'+civN(ht)+' €</td></tr><tr><td>Total TVA</td><td>'+civN(tva)+' €</td></tr><tr><td>Total TVAC</td><td>'+civN(ttc)+' €</td></tr><tr><td>Acompte</td><td>€</td></tr><tr class="cnet"><td>TOTAL</td><td>'+civN(ttc)+' €</td></tr></table></div>'+
  '<div class="csig"><div><b>Pour accord</b><br>Date et signature du client, précédées de la mention « Bon pour accord »</div><div class="cbox">'+(d.sig?'<img src="'+d.sig+'" alt="Signature">':'')+'</div></div>'+(d.sig?'<div class="csok">Bon pour accord — '+esc(d.sigName)+(d.sigPlace?', à '+esc(d.sigPlace):'')+', le '+civDate(d.sigDate)+' à '+esc(d.sigTime)+'</div>':'')+
  '<div class="cfoot"><p>Cette offre est valable pour une durée de 3 mois à compter de sa date d’émission.</p><p><span class="red">Conditions générales de paiement :</span> '+esc(c.cgv)+'</p><p class="big">'+esc(c.acompteTxt)+'</p><p><b>Pour acceptation merci de retourner ce devis et conditions générales de vente signé avec la mention "Bon pour Accord".</b></p><p><b>'+esc(c.reserveTxt)+'</b></p></div></div>';}
-var VERSION='8 – 6 nov. 2026';
+var VERSION='9 – 6 nov. 2026';
 function vSync(){var c=Sync.cfg();
  if(c.token)return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><div class="okb">Activée et chiffrée 🔒 : tout ce que tu fais ici se retrouve sur tes autres appareils, et inversement (toutes les 15 secondes et à chaque ouverture). GitHub ne voit qu’un bloc illisible.</div><p class="note" id="syncst">'+esc(Sync.status()||'')+'</p><div class="btns"><button class="btn" data-a="syncNow">↻ Synchroniser maintenant</button><button class="btn s" data-a="syncOff">Déconnecter cet appareil</button></div></div>';
  return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><p class="note">Tes études, prix et réglages sont gardés dans un coffre privé sur ton compte GitHub (gratuit). À faire <b>une seule fois</b> :</p>'+
@@ -5505,7 +5512,7 @@ function doPrint(html){var pr=$('#print');pr.innerHTML=html;setTimeout(function(
 /* ================= Actions ================= */
 var ACT={
  geo:function(){var q=$('#q').value.trim();if(!q)return;toast('Recherche…');geocode(q).then(function(r){if(!r.length){toast('Adresse introuvable');return;}var x=r[0];if(!P.pans.length){P.lat=+x.lat;P.lon=+x.lon;GRID=null;}map.setView([+x.lat,+x.lon],20);if(gkey()&&!P.pans.length)setTimeout(function(){ACT.v3d();},400);if(!P.client.addr)P.client.addr=x.display_name.split(',').slice(0,3).join(',').trim();
-  var a=x.address||{};if(a.road){P.client.addr=(a.road+(a.house_number?' '+a.house_number:''))+', '+(a.postcode||'')+' '+(a.city||a.town||a.village||a.municipality||'');}W=null;dirty();save();render();}).catch(function(){toast('Recherche impossible (pas d’internet ?)');});},
+  var a=x.address||{};if(a.road&&!(P.link&&P.link.ref&&P.client.addr)){P.client.addr=(a.road+(a.house_number?' '+a.house_number:''))+', '+(a.postcode||'')+' '+(a.city||a.town||a.village||a.municipality||'');}W=null;dirty();save();render();}).catch(function(){toast('Recherche impossible (pas d’internet ?)');});},
  layer:function(){map.removeLayer(layers[layerI].l);layerI=(layerI+1)%layers.length;layers[layerI].l.addTo(map);if(relief&&map.hasLayer(relief))relief.bringToFront();toast(layers[layerI].n);},
  relief:function(){if(map.hasLayer(relief)){map.removeLayer(relief);toast('Relief LiDAR masqué');}else{relief.addTo(map);toast('Relief LiDAR : les arêtes du toit ressortent');}},
  v3d:function(){if(!P.pans.length&&!map){return;}var c=map.getCenter();if(!P.pans.length){P.lat=c.lat;P.lon=c.lng;}View3D.open(H3D(),{google:!!gkey()});},
@@ -5563,6 +5570,8 @@ var ACT={
  gkeySave:function(){var k=($('#gkeyin').value||'').trim();if(!/^AIza[0-9A-Za-z_\-]{30,}$/.test(k)){toast('Ce n’est pas une clé Google valide (AIza…)');return;}try{localStorage.setItem('rts_gkey',k);}catch(e){}toast('✓ Clé Google enregistrée');render();},
  gkeyDel:function(){try{localStorage.removeItem('rts_gkey');}catch(e){}render();},
  goSync:function(){tab('prix');setTimeout(function(){var e=$('#v-prix .card');if(e)e.scrollIntoView({behavior:'smooth'});},50);},
+ sendApp:function(){if(!RES){toast('Fais d’abord le calcul de l’étude');return;}var code=solPayload(),ta=$('#solOut');ta.value=code;ta.style.display='block';
+  (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(code):Promise.reject()).then(function(){toast('✓ Code copié : colle-le dans l’app (chantier → ☀️ Étude solaire → 📥 Importer)',5000);},function(){ta.select();try{document.execCommand('copy');toast('✓ Code copié');}catch(e){toast('Sélectionne le code affiché et copie-le');}});},
  syncNow:function(){Sync.run().then(render);},
  syncOff:function(){if(!confirm('Déconnecter la synchro sur cet appareil ? Tes données restent ici et sur GitHub.'))return;Sync.setCfg({});render();},
  newS:function(){saveNow();P=newStudy();RES=null;W=null;GRID=null;selPan=null;closeModal();map.setView([P.lat,P.lon],14);drawPans();tab('toit');},
@@ -5681,7 +5690,7 @@ document.addEventListener('change',function(e){var el=e.target;
  if(el.id==='impin'&&el.files[0]){var f2=new FileReader();f2.onload=function(){try{var d=JSON.parse(f2.result);if(!d.studies)throw 0;if(!confirm('Remplacer les données de ce navigateur par le fichier ('+d.studies.length+' études) ?'))return;localStorage.setItem(LS,JSON.stringify(d));load();P=DB.studies[0]||newStudy();RES=null;drawPans();render();toast('✓ Importé');}catch(x){toast('Fichier invalide');}};f2.readAsText(el.files[0]);return;}
  if(el.id==='chN'||el.id==='chB'||el.id==='chM'){var n=Math.max(1,Math.min(RES.max,Math.round(+$('#chN').value||1))),bt=Math.max(0,+$('#chB').value||0);P.choice={n:n,bat:bt,micro:$('#chM').value==='1'};refreshMine();if(!P.devis.sig)P.devis.lines=null;save();render();return;}
  if(el.dataset.l!=null){var l=devisLines()[+el.dataset.l],fk=el.dataset.f;l[fk]=(fk==='q'||fk==='p')?(parseFloat(String(el.value).replace(',','.'))||0):el.value;save();$('#dprev .docsc').innerHTML=civHtml();fitDoc();return;}
- var path=el.dataset.b||el.dataset.db;if(!path)return;var tgt=el.dataset.b?P:DB,v=el.type==='checkbox'?el.checked:el.value;
+ var path=el.dataset.b||el.dataset.db;if(!path)return;if(/^link\./.test(path)&&!P.link)P.link={ref:'',site:'',code:''};var tgt=el.dataset.b?P:DB,v=el.type==='checkbox'?el.checked:el.value;
  if(el.type==='number'||el.inputMode==='decimal'){v=parseFloat(String(v).replace(',','.'));if(!isFinite(v))v=0;}
  if(path==='modIdx'||path==='client.vat'||path==='cons.flex'){v=+v;}
  if(typeof v==='number'&&!/\.az$/.test(path)&&v<0){v=0;toast('Valeur négative remplacée par 0');}
@@ -5694,8 +5703,15 @@ document.addEventListener('change',function(e){var el=e.target;
 window.addEventListener('resize',fitDoc);
 $('#q').addEventListener('keydown',function(e){if(e.key==='Enter')ACT.geo();});
 /* ================= Démarrage ================= */
-load();P=DB.studies[0]?DB.studies[0]:newStudy();setTimeout(function(){Sync.start();},800);(function(){var d=$('#syncdot');if(d&&!Sync.on())d.textContent='☁️ Synchro';})();
+load();P=DB.studies[0]?DB.studies[0]:newStudy();
+/* ouverture depuis Rtoitures App : #ref=CH-…&site=…&client=…&addr=…&code=… (le # n'est jamais envoyé au serveur) */
+var LINK=(function(){var h=location.hash.replace(/^#/,'');if(!/(^|&)ref=/.test(h))return null;var o={};h.split('&').forEach(function(kv){var i=kv.indexOf('=');if(i>0)o[kv.slice(0,i)]=decodeURIComponent(kv.slice(i+1));});try{history.replaceState(null,'',location.pathname);}catch(e){}return o.ref?o:null;})();
+if(LINK){var ex=DB.studies.find(function(x){return x.link&&x.link.ref===LINK.ref;});
+ if(ex)P=ex;else{P=newStudy();P.client.name=LINK.client||'';P.client.addr=LINK.addr||'';}
+ P.link={ref:LINK.ref,site:LINK.site||'',code:LINK.code||''};if(!P.devis.code&&LINK.code)P.devis.code=LINK.code;saveNow();}setTimeout(function(){Sync.start();},800);(function(){var d=$('#syncdot');if(d&&!Sync.on())d.textContent='☁️ Synchro';})();
 initMap();if(P.pans.length){map.setView([P.mlat||P.lat,P.mlon||P.lon],P.zoom||19);}drawPans();tab('toit');
+if(LINK&&!P.pans.length&&P.client.addr){$('#q').value=P.client.addr;setTimeout(function(){ACT.geo();},300);}
+if(LINK)toast('🔗 Chantier '+LINK.ref+' ouvert depuis Rtoitures App',4000);
 window.__RT={get map(){return map;},get P(){return P;},get RES(){return RES;},get W(){return W;},ACT:ACT,layout:layout,parseCSV:parseCSV,tab:tab};
 })();
 </script>
