@@ -36,12 +36,13 @@ var View3D=(function(){
  function texWall(){if(TXC.wall)return TXC.wall;var n=256,c=document.createElement('canvas');c.width=c.height=n;var x=c.getContext('2d'),im=x.createImageData(n,n),d=im.data,Hh=new Float32Array(n*n);
   for(var j=0;j<n;j++)for(var i=0;i<n;i++){var a=hrand(i,j,2),b=hrand(i>>2,j>>2,4),o=(j*n+i)*4,v=222+a*20+b*13;d[o]=d[o+1]=d[o+2]=v;d[o+3]=255;Hh[j*n+i]=a*0.6+b*0.4;}
   x.putImageData(im,0,0);return TXC.wall={c:c,nc:normalFrom(Hh,n,0.9)};}
- function texPanel(land){var k=land?'panL':'panP';if(TXC[k])return TXC[k];var W=land?480:288,Hc=land?288:480,c=document.createElement('canvas');c.width=W;c.height=Hc;var x=c.getContext('2d');
-  x.fillStyle='#15171c';x.fillRect(0,0,W,Hc);var m=9,nc=land?10:6,nr=land?6:10,cw=(W-2*m)/nc,ch=(Hc-2*m)/nr;
-  x.fillStyle='#04060b';x.fillRect(m,m,W-2*m,Hc-2*m);
-  for(var r=0;r<nr;r++)for(var q=0;q<nc;q++){var X=m+q*cw+1.2,Y=m+r*ch+1.2,g=x.createLinearGradient(X,Y,X+cw,Y+ch),v=hrand(q,r,9)*10;g.addColorStop(0,'rgb('+(10+v|0)+','+(18+v|0)+','+(44+v|0)+')');g.addColorStop(1,'rgb(6,10,26)');x.fillStyle=g;x.fillRect(X,Y,cw-2.4,ch-2.4);
-   x.strokeStyle='rgba(150,165,200,0.16)';x.lineWidth=0.7;x.beginPath();if(land){for(var e=1;e<4;e++){x.moveTo(X,Y+ch*e/4);x.lineTo(X+cw-2.4,Y+ch*e/4);}}else{for(var e2=1;e2<4;e2++){x.moveTo(X+cw*e2/4,Y);x.lineTo(X+cw*e2/4,Y+ch-2.4);}}x.stroke();}
-  x.strokeStyle='#2a2e36';x.lineWidth=2;x.strokeRect(1,1,W-2,Hc-2);var t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return TXC[k]=t;}
+ function texPanel(land){var k=land?'panL':'panP';if(TXC[k])return TXC[k];var W=land?960:576,Hc=land?576:960,c=document.createElement('canvas');c.width=W;c.height=Hc;var x=c.getContext('2d');
+  x.fillStyle='#0a0c11';x.fillRect(0,0,W,Hc);var m=14,nc=land?20:6,nr=land?6:20,cw=(W-2*m)/nc,ch=(Hc-2*m)/nr;
+  for(var r=0;r<nr;r++)for(var q=0;q<nc;q++){var X=m+q*cw+1.4,Y=m+r*ch+1.4,w=cw-2.8,h=ch-2.8;
+   if(land){if(q===nc/2-1)w-=3;if(q===nc/2){X+=3;w-=3;}}else{if(r===nr/2-1)h-=3;if(r===nr/2){Y+=3;h-=3;}}
+   var v0=hrand(q,r,9)*9,g=x.createLinearGradient(X,Y,X+w,Y+h);g.addColorStop(0,'rgb('+(16+v0|0)+','+(22+v0|0)+','+(44+v0|0)+')');g.addColorStop(1,'rgb(7,10,24)');x.fillStyle=g;x.fillRect(X,Y,w,h);
+   x.strokeStyle='rgba(175,186,210,0.17)';x.lineWidth=0.8;x.beginPath();if(land){for(var e=1;e<10;e++){var yy=Y+h*e/10;x.moveTo(X,yy);x.lineTo(X+w,yy);}}else{for(var e2=1;e2<10;e2++){var xx=X+w*e2/10;x.moveTo(xx,Y);x.lineTo(xx,Y+h);}}x.stroke();}
+  x.strokeStyle='#1c1f26';x.lineWidth=4;x.strokeRect(2,2,W-4,Hc-4);var t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return TXC[k]=t;}
 
  /* ---------- ouverture ---------- */
  function open(H,opt){opt=opt||{};
@@ -51,7 +52,7 @@ var View3D=(function(){
    '<div data-v="labs" style="position:absolute;inset:0;pointer-events:none;overflow:hidden"></div>'+
    '<div data-v="loupe" style="position:absolute;display:none;width:150px;height:150px;box-sizing:border-box;border:3px solid #facc15;border-radius:14px;box-shadow:0 6px 22px rgba(0,0,0,.55);pointer-events:none;background:linear-gradient(#facc15,#facc15) 50% 50%/1px 100% no-repeat,linear-gradient(#facc15,#facc15) 50% 50%/100% 1px no-repeat"><i style="position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-8px;border:1px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #000"></i></div>'+
    '<div data-ui="top" style="position:absolute;left:8px;right:8px;top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><button data-v="close" class="btn sm">✕ Fermer</button><select data-v="date" style="padding:7px;border-radius:9px;border:0;font:inherit"><option value="5-21">21 juin</option><option value="2-20">21 mars</option><option value="11-21">21 décembre</option><option value="now">Aujourd’hui</option></select>'+
-   '<label style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);padding:4px 8px;border-radius:9px">🕑 <input data-v="hour" type="range" min="5" max="22" step="0.25" value="13" style="width:110px"><b data-v="hl">13:00</b></label><button data-v="play" '+B+'>▶ Journée</button><button data-v="top" '+B+'>⤓ Dessus</button><button data-v="roof" '+B+'>🏠 Toit : auto</button><button data-v="google" '+B+'>📷 3D Google</button><button data-v="pres" class="btn sm">🎬 Présentation</button></div>'+
+   '<label style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);padding:4px 8px;border-radius:9px">🕑 <input data-v="hour" type="range" min="5" max="22" step="0.25" value="13" style="width:110px"><b data-v="hl">13:00</b></label><button data-v="play" '+B+'>▶ Journée</button><button data-v="top" '+B+'>⤓ Dessus</button><button data-v="roof" '+B+'>🏠 Toit : auto</button><button data-v="google" '+B+'>📷 3D Google</button><button data-v="pres" class="btn sm">🎬 Présentation</button><button data-v="pv" class="btn sm g">▦ Poser les panneaux</button></div>'+
    '<div data-v="attr" style="position:absolute;right:8px;bottom:50px;font:10px system-ui;color:#fff;text-shadow:0 0 3px #000;max-width:70%;text-align:right;pointer-events:none"></div>'+
    '<div data-v="tools" data-ui="tools" style="position:absolute;left:8px;right:8px;bottom:64px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"></div>'+
    '<div data-v="info" data-ui="info" style="position:absolute;left:8px;bottom:10px;right:8px;background:rgba(0,0,0,.6);border-radius:10px;padding:7px 10px;font-size:13px">Chargement du relevé LiDAR…</div>'+
@@ -112,7 +113,7 @@ var View3D=(function(){
   H.getGrid(c[0],c[1],half,0.5,function(f){say('Chargement du relevé LiDAR… '+Math.round(f*100)+' %');}).then(function(G){if(!st)return;
    if(!G||G.z.filter(function(v){return v!=null;}).length<100){say('Relevé LiDAR inaccessible (internet ?). La vue 3D a besoin du LiDAR wallon.');return;}
    say('Chargement de la photo aérienne 2026…');
-   return loadTex(H,G,half).then(function(tex){if(!st)return;st.G=G;st.tex=tex;st.half=half;base(G,tex);rebuild(true);if(opt.google&&st)ACT3.google();});});
+   return loadTex(H,G,half).then(function(tex){if(!st)return;st.G=G;st.tex=tex;st.half=half;base(G,tex);rebuild(true);if(opt.google&&st)ACT3.google();if(opt.mode==='pv'&&st)ACT3.pv();});});
  }
  /* décor fixe : grande photo de contexte */
  function base(G,tex){var n=G.n,zmin=1e9;G.z.forEach(function(v){if(v!=null&&v<zmin)zmin=v;});st.zmin=zmin;
@@ -140,7 +141,7 @@ var View3D=(function(){
  /* tout ce qui dépend des versants : terrain nettoyé, bâtiment, panneaux, poignées */
  function rebuild(first){if(!st||!st.G)return;var G=st.G,tex=st.tex,H=st.H,n=G.n,zmin=st.zmin,i,j,k;
   if(st.dyn){st.S.remove(st.dyn);st.dyn.traverse(function(o){if(o.geometry)o.geometry.dispose();});}
-  var root=new THREE.Group(),grp=new THREE.Group(),over=new THREE.Group(),hg=new THREE.Group();root.add(grp);root.add(over);over.add(hg);st.dyn=root;st.S.add(root);st.solids=[];st.handles=[];st.pmesh=[];st.hg=hg;st.prev=null;
+  var root=new THREE.Group(),grp=new THREE.Group(),over=new THREE.Group(),hg=new THREE.Group();root.add(grp);root.add(over);over.add(hg);st.dyn=root;st.S.add(root);st.solids=[];st.handles=[];st.pmesh=[];st.pvHit=[];st.pvs=st.H.pv?st.H.pv():null;st.hg=hg;st.prev=null;
   grp.visible=!st.google;over.position.y=st.google?st.dz:0;st.over=over;
   var z=G.z.slice();for(k=0;k<z.length;k++)if(z[k]==null){var s=0,c=0;[[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2]].forEach(function(o){var q=k+o[0]+o[1]*n;if(q>=0&&q<z.length&&G.z[q]!=null){s+=G.z[q];c++;}});z[k]=c?s/c:zmin;}
   var plist=H.pans3d(G);st.plist=plist;plist.forEach(planeOf);
@@ -190,12 +191,12 @@ var View3D=(function(){
    if(fa.length)grp.add(meshOf(fa,fasMat,true));if(gu.length)grp.add(meshOf(gu,zincMat,true));
    var lp=[];p.xy.forEach(function(q){lp.push(q[0],Y3(p,q[0],q[1])+0.04,-q[1]);});lp.push(lp[0],lp[1],lp[2]);var lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(lp,3));var ol=new THREE.Line(lg,new THREE.LineBasicMaterial({color:sel?0xfacc15:col,transparent:true,opacity:(sel||st.google||st.mode!=='view')?1:0.55}));ol.userData.outline=1;over.add(ol);
    // panneaux : vrais modules (cadre, cellules, verre) posés sur rails
-   if(st.mode!=='edit')p.panels.forEach(function(q){var v=q.c.map(function(c){return new THREE.Vector3(c[0],Y3(p,c[0],c[1]),-c[1]);});
+   if(st.mode!=='edit')p.panels.forEach(function(q){var pvm=st.mode==='pv';if(q.off&&!pvm)return;var v=q.c.map(function(c){return new THREE.Vector3(c[0],Y3(p,c[0],c[1]),-c[1]);});
     var U=v[1].clone().sub(v[0]),W=v[3].clone().sub(v[0]),lu=U.length(),lw=W.length(),X=U.clone().normalize(),Yn=X.clone().cross(W.clone().normalize()).normalize();if(Yn.y<0)Yn.negate();var Z=X.clone().cross(Yn).normalize(),ctr=v[0].clone().add(v[2]).multiplyScalar(0.5);
-    if(!q.used){if(st.pres)return;var g2=new THREE.BufferGeometry(),o=Yn.clone().multiplyScalar(0.07),w4=v.map(function(a){return a.clone().add(o);});g2.setAttribute('position',new THREE.Float32BufferAttribute([].concat(w4[0].toArray(),w4[1].toArray(),w4[2].toArray(),w4[0].toArray(),w4[2].toArray(),w4[3].toArray()),3));over.add(new THREE.Mesh(g2,ghostMat));
+    if(pvm?q.off:!q.used){if(st.pres)return;var g2=new THREE.BufferGeometry(),o=Yn.clone().multiplyScalar(0.07),w4=v.map(function(a){return a.clone().add(o);});g2.setAttribute('position',new THREE.Float32BufferAttribute([].concat(w4[0].toArray(),w4[1].toArray(),w4[2].toArray(),w4[0].toArray(),w4[2].toArray(),w4[3].toArray()),3));var gh=new THREE.Mesh(g2,pvm?qMat(p.id):ghostMat);if(pvm){gh.userData={pan:p.id,k:q.k,slot:1};st.pvHit.push(gh);}over.add(gh);
      var e=new THREE.BufferGeometry();e.setAttribute('position',new THREE.Float32BufferAttribute([].concat(w4[0].toArray(),w4[1].toArray(),w4[2].toArray(),w4[3].toArray(),w4[0].toArray()),3));over.add(new THREE.Line(e,fmat));return;}
     var bk=Math.round(lu*100)+'x'+Math.round(lw*100),bg=boxes[bk]||(boxes[bk]=new THREE.BoxGeometry(lu-0.02,0.035,lw-0.02)),land=lu>lw,gm=land?gL:gP;
-    var pm=new THREE.Mesh(bg,[frameMat,frameMat,gm,frameMat,frameMat,frameMat]);pm.matrixAutoUpdate=false;pm.userData.base=ctr.clone().add(Yn.clone().multiplyScalar(0.075));pm.userData.n=Yn;pm.userData.X=X;pm.userData.Z=Z;setPanel(pm,0);pm.castShadow=true;pm.receiveShadow=true;over.add(pm);st.pmesh.push(pm);
+    var pm=new THREE.Mesh(bg,[frameMat,frameMat,gm,frameMat,frameMat,frameMat]);pm.matrixAutoUpdate=false;pm.userData.base=ctr.clone().add(Yn.clone().multiplyScalar(0.075));pm.userData.n=Yn;pm.userData.X=X;pm.userData.Z=Z;setPanel(pm,0);pm.castShadow=true;pm.receiveShadow=true;over.add(pm);st.pmesh.push(pm);pm.userData.pan=p.id;pm.userData.k=q.k;if(pvm)st.pvHit.push(pm);if(st.pop&&st.pop===p.id+':'+q.k){st.pop=null;popAnim(pm);}
     pts.push(ctr.clone().add(Yn.clone().multiplyScalar(0.2)).add(new THREE.Vector3(0,st.google?st.dz:0,0)));});
    // poignées de modification
    if(st.mode==='edit'&&sel){p.xy.forEach(function(q,k){var on=st.selV===k;var sp=new THREE.Mesh(new THREE.SphereGeometry(1,18,12),new THREE.MeshBasicMaterial({color:on?0xfacc15:(k<2?0xf97316:0x2563eb),depthTest:false,transparent:true,opacity:0.95}));sp.renderOrder=10;sp.position.set(q[0],Y3(p,q[0],q[1])+0.05,-q[1]);sp.userData={pan:p.id,v:k,on:on};hg.add(sp);st.handles.push(sp);
@@ -207,6 +208,11 @@ var View3D=(function(){
   dims();
   if(first){var c=H.center();var hit=pick3(c[0],c[1]);var t=new THREE.Vector3(c[0],(hit!=null?hit:4)*0.6,-c[1]);st.ctl.target.copy(t);st.cam.position.set(t.x-70,t.y+150,t.z+170);var fk=fitK();fly(new THREE.Vector3(t.x-22*fk,t.y+17*fk,t.z+24*fk),t.clone(),2200);}
   tools();updSun();}
+ function popAnim(pm){var t0=performance.now();(function f(){if(!st)return;var t=Math.min(1,(performance.now()-t0)/340),e=1-t;setPanel(pm,0.7*e*e*e);if(t<1)requestAnimationFrame(f);})();}
+ function qMat(id){var s=st.pvs&&st.pvs.per[id],f=s?s.f:1,c=f>=0.9?0x22c55e:f>=0.78?0xfacc15:f>=0.62?0xf97316:0xef4444;if(!st.qm)st.qm={};return st.qm[c]||(st.qm[c]=new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0.4,side:THREE.DoubleSide,depthWrite:false}));}
+ function esc3(t){return String(t==null?'':t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+ function pvBar(){var s=st.pvs;if(!s||(!s.n&&st.mode!=='pv'))return '';var f=function(x,d){return (+x||0).toLocaleString('fr-BE',{minimumFractionDigits:d,maximumFractionDigits:d});};
+  return '<div class="pvc3"><span><b>▦ '+s.n+'</b> panneaux</span><span><b>⚡ '+f(s.kwc,1)+'</b> kWc</span><span class="y"><b>☀️ ≈ '+f(s.kwh,0)+'</b> kWh/an</span>'+(st.mode==='pv'?'<i>cases : 🟩 très bien · 🟨 bien · 🟧 moyen · 🟥 faible</i>':'')+'</div>';}
  function setPanel(pm,lift){var u=pm.userData,p=u.base.clone().add(u.n.clone().multiplyScalar(lift));pm.matrix.makeBasis(u.X,u.n,u.Z).setPosition(p);pm.matrixWorldNeedsUpdate=true;}
  function pick3(x,y){var G=st.G,i=Math.round((x-G.x0)/G.step),j=Math.round((y-G.y0)/G.step);var v=(i>=0&&j>=0&&i<G.n&&j<G.n)?G.z[j*G.n+i]:null;return v==null?null:v-st.zmin;}
  function panById(id){return (st.plist||[]).find(function(p){return p.id===id;});}
@@ -263,6 +269,8 @@ var View3D=(function(){
  function aimAt(cx,cy){var h=hitModel(cx,cy);if(!h)return;st.aimHit=h;loupe(h.point.clone(),cx,cy);say('Visée à la loupe : glisse pour ajuster, relâche pour poser le point.');}
  function place(h){var P3=h.point,xy=snap([P3.x,-P3.z]);st.draw.push([xy[0],xy[1],P3.y-(st.google?st.dz:0)]);rebuild();say(st.draw.length<2?'Touche l’autre coin de la gouttière.':'Touche les autres coins du versant (faîte, rives), puis ✓ Terminer. Appui long = visée à la loupe.');}
  function tap(cx,cy){if(!st||!st.terrain||st.pres)return;
+  if(st.mode==='pv'){var hp=rayAt(cx,cy).intersectObjects(st.pvHit||[],false);if(hp.length){var u=hp[0].object.userData,on=st.H.tog(u.pan,u.k);if(on==null)return;st.sel=u.pan;st.pop=on?u.pan+':'+u.k:null;rebuild();say(on?'➕ Panneau posé. Touche une autre case, ou ✨ Remplir pour tout le versant.':'➖ Panneau enlevé.');return;}
+   var h0=hitModel(cx,cy),pid0=h0&&h0.object.userData&&h0.object.userData.pan;st.sel=pid0||null;rebuild();say(pid0?'Versant choisi : ✨ Remplir, 🧹 Vider, ou ↻ pour tourner les panneaux.':'Touche une case pour poser un panneau, ou un versant pour le choisir.');return;}
   if(st.mode==='edit'&&st.handles.length){var hh=hitHandle(cx,cy);if(hh){var u=hh.userData;if(u.mid!=null){st.H.insPt(u.pan,u.mid,u.xy);st.selV=u.mid;rebuild();return;}st.selV=u.v;rebuild();say('Point '+(u.v+1)+' choisi : glisse-le, touche sa bonne place, ou ajuste avec les flèches (5 cm).');return;}}
   var h=hitModel(cx,cy);if(!h)return;var P3=h.point,xy=[P3.x,-P3.z];
   if(st.mode==='draw'){place(h);return;}
@@ -272,7 +280,9 @@ var View3D=(function(){
  function tools(){if(!st)return;var h='',B='class="btn s sm"',mg='<button data-v="mag" '+B+'>🧲 Aimant : '+(st.mag?'oui':'non')+'</button>';
   if(st.mode==='draw')h='<button data-v="undoD" '+B+'>↶ Point</button><button data-v="endD" class="btn sm g"'+(st.draw.length>=3?'':' disabled')+'>✓ Terminer</button>'+mg+'<button data-v="cancel" '+B+'>✕ Annuler</button>';
   else if(st.mode==='edit')h=(st.selV!=null?'<button data-v="nL" '+B+'>◀</button><button data-v="nU" '+B+'>▲</button><button data-v="nD" '+B+'>▼</button><button data-v="nR" '+B+'>▶</button><button data-v="delV" '+B+'>🗑 Ce point</button>':'')+mg+'<button data-v="undoE" '+B+'>↶</button><button data-v="endE" class="btn sm g">✓ Fini</button>';
+  else if(st.mode==='pv'){var ps=st.pvs&&st.sel&&st.pvs.per[st.sel];h='<button data-v="pvFillAll" class="btn sm g">✨ Tout remplir</button><button data-v="pvClearAll" '+B+'>🧹 Tout vider</button>'+(ps?'<span class="pvsel">'+esc3(ps.name)+'</span><button data-v="pvFill" class="btn sm g">✨ Remplir</button><button data-v="pvClear" '+B+'>🧹 Vider</button><button data-v="pvOri" '+B+'>↻ '+(ps.orient==='paysage'?'En portrait':'En paysage')+'</button>':'')+'<button data-v="pvCalc" class="btn sm">📈 Calcul complet</button>';}
   else h=(st.H.gkey&&st.H.gkey()?'<button data-v="solar" class="btn sm">☀️ Versants Google</button>':'')+'<button data-v="startD" class="btn sm">✏️ Dessiner un versant</button>'+(st.sel?'<button data-v="startE" '+B+'>✥ Modifier</button><button data-v="delP" '+B+'>🗑 Supprimer</button>':'');
+  h=pvBar()+h;var tb=st.ov.querySelector('[data-ui=top] [data-v=pv]');if(tb)tb.textContent=st.mode==='pv'?'✓ Panneaux posés':'▦ Poser les panneaux';
   st.ov.querySelector('[data-v=tools]').innerHTML=h;}
 
  /* ---------- caméra : déplacements fluides ---------- */
@@ -290,8 +300,8 @@ var View3D=(function(){
    var dl=new DRACOLoader();dl.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');T.registerPlugin(new GLTFExtensionsPlugin({dracoLoader:dl}));T.registerPlugin(new TileCompressionPlugin());
    T.registerPlugin(new ReorientationPlugin({lat:st.H.lat()*RAD,lon:st.H.lon()*RAD,height:st.zmin+45.5,up:'+y',recenter:true}));
    T.errorTarget=0.8;T.lruCache.minSize=1500;T.lruCache.maxSize=3000;T.setCamera(st.cam);T.setResolutionFromRenderer(st.cam,st.R);
-   T.addEventListener('load-model',function(e){e.scene.traverse(function(c){if(c.material&&c.material.map){c.material.map.anisotropy=8;c.material.map.colorSpace=THREE.SRGBColorSpace;}});st.needAlign=true;});
-   T.addEventListener('load-error',function(){say('⚠ Google refuse la 3D : vérifie la clé et que « Map Tiles API » est activée (Réglages).');});
+   T.addEventListener('load-model',function(e){if(st)st.gOK=true;e.scene.traverse(function(c){if(c.material&&c.material.map){c.material.map.anisotropy=8;c.material.map.colorSpace=THREE.SRGBColorSpace;}});st.needAlign=true;});
+   T.addEventListener('load-error',function(){if(!st||st.gFail)return;if(!st.gOK){st.gFail=true;if(st.google)ACT3.google();say('⚠ Google refuse la 3D photo (clé, ou « Map Tiles API » à activer dans ⚙️ Réglages) : je reste sur la maquette LiDAR.');return;}say('⚠ Google : une partie de la 3D photo n’a pas chargé.');});
    var wrap=new THREE.Group();wrap.rotation.y=Math.PI;wrap.add(T.group);st.S.add(wrap);st.tiles=T;st.wrap=wrap;st.dz=0;st.aligned=0;
    st.alignT=setInterval(align,1500);}
   return true;}
@@ -336,6 +346,13 @@ var View3D=(function(){
   roof:function(){var o=['auto','photo','ardoise','tuile'],n={auto:'auto',photo:'photo',ardoise:'ardoises',tuile:'tuiles'};st.roof=o[(o.indexOf(st.roof)+1)%4];st.ov.querySelector('[data-v=roof]').textContent='🏠 Toit : '+n[st.roof];rebuild();},
   mag:function(){st.mag=!st.mag;tools();say(st.mag?'🧲 Aimant activé : coins voisins, équerre et bords des autres versants.':'Aimant coupé : pose libre.');},
   pres:function(){if(!st.G)return;presStart();},pExit:function(){presEnd();},
+  pv:function(){if(!st.G)return;if(st.mode==='pv'){st.mode='view';st.sel=null;rebuild();updSun();return;}st.mode='pv';st.draw=[];st.selV=null;rebuild();say('▦ Touche une case pour poser un panneau, touche un panneau pour l’enlever. Couleur des cases : vert = très bon soleil, rouge = faible.');},
+  pvFillAll:function(){st.H.fill(null);rebuild();say(st.pvs&&st.pvs.n?'✨ Les versants bien exposés sont remplis. Touche un panneau pour l’enlever.':'Aucun versant bien exposé : choisis un versant puis ✨ Remplir.');},
+  pvClearAll:function(){st.H.clear(null);rebuild();say('🧹 Tous les panneaux sont enlevés.');},
+  pvFill:function(){if(st.sel){st.H.fill(st.sel);rebuild();}},
+  pvClear:function(){if(st.sel){st.H.clear(st.sel);rebuild();}},
+  pvOri:function(){if(st.sel){var o=st.H.orient(st.sel);rebuild();if(o)say('↻ Panneaux en '+o+'.');}},
+  pvCalc:function(){var H=st.H;close();if(H.calc)H.calc();},
   pNext:function(){var P=st.pres;if(!P)return;P.pt=Math.round(P.pt)>=3?0:Math.round(P.pt)+1;P.idle=performance.now();},
   pPrev:function(){var P=st.pres;if(!P)return;P.pt=Math.max(0,Math.round(P.pt)-1);P.idle=performance.now();},
   solar:function(){say('☀️ Google Solar analyse le toit…');var c=st.ctl.target;st.H.solar([c.x,-c.z]).then(function(list){if(!st)return;if(list&&list.length){st.sel=list[0].id;rebuild();say('☀️ '+list.length+' versant(s) trouvé(s) par Google Solar. Touche un toit puis ✥ Modifier pour ajuster.');}else say('Pas de nouveau versant trouvé (voir le message en bas de l’écran).');});},

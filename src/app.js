@@ -239,6 +239,21 @@ function unpackW(c){var t=[];for(var i=0;i<c.n;i++)t.push(c.t0+i*3600);return {t
 var RES=null,specCache={};
 function dirty(){RES=null;}
 function onPanels(){var L=[];P.pans.forEach(function(p){(p.panels||[]).forEach(function(q){if(q.on)L.push(p);});});return L;}
+/* ================= Pose facile des panneaux (carte et maquette 3D) ================= */
+// estimation rapide (≈) : production par kWc selon la pente et l'orientation, pour la Belgique (sud, 35° = 100 %)
+var YBASE=930;
+function yFac(tilt,az){var t=Math.max(0,Math.min(90,+tilt||0)),d=Math.abs(((((az==null?180:az)-180)%360)+540)%360-180)*RAD,k=t<=35?t/35:1+(t-35)/55,
+ f0=t<=35?0.87-0.07*k:0.80-0.2725*(k-1),f1=t<=35?0.21*k:0.21+0.015*(k-1),f2=t<=35?-0.01*k:-0.01-0.0225*(k-1);return Math.max(0.15,f0+f1*Math.cos(d)+f2*Math.cos(2*d));}
+function panAz(p){return p.az!=null?p.az:Math.round(panFrame(p).az);}
+function pvStats(){var m=MOD(),n=0,kwh=0,per={};P.pans.forEach(function(p){var c=(p.panels||[]).filter(function(q){return q.on;}).length,f=yFac(p.tilt,panAz(p));per[p.id]={n:c,f:f,slots:(p.panels||[]).length,orient:p.orient||'portrait',name:p.name};n+=c;kwh+=c*m.wc/1000*YBASE*f;});
+ return {n:n,kwc:n*m.wc/1000,kwh:Math.round(kwh/10)*10,per:per};}
+function pvGood(p){return (p.tilt||0)<=60&&yFac(p.tilt,panAz(p))>=0.7;}
+function pvBadge(p){var f=yFac(p.tilt,panAz(p)),c=f>=0.9?'#16a34a':f>=0.78?'#ca8a04':f>=0.62?'#ea580c':'#dc2626';return '<span class="pvq" style="background:'+c+'" title="Soleil reçu par rapport à un toit idéal (sud, 35°)">☀️ '+Math.round(f*100)+' %</span>';}
+function pvChanged(){dirty();save();drawPans();render();}
+function pvFill(id){P.pans.forEach(function(p){if(id?p.id!==id:!pvGood(p))return;if(!p.panels||!p.panels.length)layout(p);(p.panels||[]).forEach(function(q){q.on=true;});});pvChanged();}
+function pvClear(id){P.pans.forEach(function(p){if(!id||p.id===id)(p.panels||[]).forEach(function(q){q.on=false;});});pvChanged();}
+function pvOrient(id){var p=P.pans.find(function(x){return x.id===id;});if(!p)return null;p.orient=p.orient==='paysage'?'portrait':'paysage';layout(p);pvChanged();return p.orient;}
+function pvToggle(id,k){var p=P.pans.find(function(x){return x.id===id;});if(!p||!p.panels||!p.panels[k])return null;p.panels[k].on=!p.panels[k].on;pvChanged();return p.panels[k].on;}
 function invSize(kwc){if(P&&P.client.phase!=='tri'){var s0=invSize0(kwc);return Math.min(5,s0);}return invSize0(kwc);}
 function invSize0(kwc){var S=[1.5,2,2.5,3,3.68,4,5,6,8,10,12,15,20];var t=kwc*0.87;for(var i=0;i<S.length;i++)if(S[i]>=t)return S[i];return Math.ceil(t);}
 function specFor(pan){var m=MOD(),key=[WK,pan.tilt,Math.round(pan.az),(pan.horizon||[]).join('|'),m.g,DB.fin.loss].join('/');if(specCache[pan.id]&&specCache[pan.id].k===key)return specCache[pan.id].v;
@@ -348,14 +363,15 @@ function vToit(){var h='<div class="card"><h3>Client</h3><div class="row">'+inp(
   h+='<div class="btns"><button class="btn s sm" data-a="selEdit" data-id="'+p.id+'">✥ Modifier les points</button><button class="btn s sm" data-a="lidar" data-id="'+p.id+'">📡 Remesurer</button><button class="btn s sm" data-a="flip" data-id="'+p.id+'">⇅ Inverser l’orientation</button></div></div>';});
  if(P.gsolar)h+='<div class="okb">☀️ Google Solar : '+P.gsolar.panels+' panneaux possibles au maximum sur ce toit ('+P.gsolar.area+' m²), ensoleillement jusqu’à '+nf(P.gsolar.sun)+' h/an · photos du '+esc(P.gsolar.date)+' ('+esc(P.gsolar.quality)+').</div>';
  h+='</div><div class="card"><h3>Astuce précision</h3><p class="note">Le LiDAR wallon date de 2021-2022 (environ 13 points/m²) : une extension récente ou un arbre abattu depuis n’y figurent pas. Pour un chantier à fort enjeu, ton relevé drone Pix4D reste la référence.</p></div>';return h;}
-function vPV(){var m=MOD(),tot=onPanels().length,h='<div class="card"><h3>Panneaux</h3>'+inp('Modèle de panneau','modIdx',{opts:DB.prices.mods.map(function(x,i){return [i,x.n+' – '+x.wc+' Wc'];}),rr:1})+
- '<div class="kpis"><div class="kpi hi"><div class="v">'+tot+'</div><div class="l">panneaux posables</div></div><div class="kpi hi"><div class="v">'+nf(tot*m.wc/1000,2)+' kWc</div><div class="l">puissance maximale</div></div></div></div>';
+function vPV(){var m=MOD(),s=pvStats(),h='<div class="card pvplay"><h3>▦ Poser les panneaux</h3>'+(P.pans.length?'<p class="note">Le plus simple : sur la maquette 3D, touche une case pour poser un panneau, touche un panneau pour l’enlever.</p><button class="btn pvbig" data-a="pv3d">🧊 Poser sur la maquette 3D</button><div style="display:flex;gap:8px;margin-top:8px"><button class="btn g" style="flex:1" data-a="pvFillAll">✨ Tout remplir</button><button class="btn s" style="flex:1" data-a="pvClearAll">🧹 Tout vider</button></div>':'')+
+ '<div class="pvc"><div><b>'+s.n+'</b><span>panneaux</span></div><div><b>'+nf(s.kwc,1)+'</b><span>kWc</span></div><div><b>≈ '+nf(s.kwh)+'</b><span>kWh/an</span></div></div><p class="note">≈ estimation rapide (pente et orientation). Le calcul exact, heure par heure avec la vraie météo, est dans 📈 Étude.</p></div>'+
+ '<div class="card"><h3>Modèle</h3>'+inp('Modèle de panneau','modIdx',{opts:DB.prices.mods.map(function(x,i){return [i,x.n+' – '+x.wc+' Wc'];}),rr:1})+'</div>';
  if(!P.pans.length)return h+'<div class="card"><p class="note">Dessine d’abord les versants dans l’onglet Toit.</p></div>';
  P.pans.forEach(function(p,i){var on=(p.panels||[]).filter(function(q){return q.on;}).length,off=(p.panels||[]).length-on;
-  h+='<div class="card"><div class="ph" style="display:flex;gap:8px;align-items:center;font-weight:700"><span class="dot" style="background:'+p.color+'"></span>'+esc(p.name)+' : '+on+' panneaux'+(off?' ('+off+' retirés)':'')+'</div><div class="row">'+
+  h+='<div class="card"><div class="ph" style="display:flex;gap:8px;align-items:center;font-weight:700"><span class="dot" style="background:'+p.color+'"></span>'+esc(p.name)+' : '+on+' panneaux'+(off?' ('+off+' retirés)':'')+pvBadge(p)+'</div><div style="display:flex;gap:6px;margin:8px 0"><button class="btn sm g" data-a="pvFillP" data-id="'+p.id+'">✨ Remplir</button><button class="btn sm s" data-a="pvClearP" data-id="'+p.id+'">🧹 Vider</button></div><div class="row">'+
   inp('Pose','pans.'+i+'.orient',{opts:[['portrait','Portrait (debout)'],['paysage','Paysage (couché)']],rr:1})+inp('Marge aux bords (m)','pans.'+i+'.margin',{num:1,rr:1})+'</div>'+
   (p.tilt==null?'<div class="warn">Pente inconnue : indique-la dans l’onglet Toit.</div>':'')+'</div>';});
- h+='<div class="card"><p class="note">Marge conseillée : 0,4 m (rives, gouttière) ; garde 0,5 m sous le faîte. Retire à la main les panneaux sur une cheminée, une fenêtre de toit ou une zone d’ombre en les touchant sur la carte.</p></div>';return h;}
+ h+='<div class="card"><p class="note">Marge conseillée : 0,4 m (rives, gouttière) ; garde 0,5 m sous le faîte. Retire à la main les panneaux sur une cheminée, une fenêtre de toit ou une zone d’ombre en les touchant sur la carte ou sur la maquette 3D (🧊).</p></div>';return h;}
 function vConso(){var c=P.cons,h='<div class="card"><h3>Consommation du client</h3>'+
  '<div class="row">'+inp('Consommation annuelle (kWh)','cons.annual',{num:1,rr:1})+inp('Mode de vie','cons.profile',{opts:[['actif','Absent en journée (travail)'],['maison','Présent en journée (télétravail, retraité)'],['commerce','Bureau / commerce']],rr:1})+'</div>'+
  '<p class="note">Repère : 2 adultes ≈ 2 500 kWh, famille de 4 ≈ 3 500 à 4 500 kWh (hors chauffage électrique). Le chiffre est sur le décompte annuel du fournisseur.</p>'+
@@ -440,7 +456,7 @@ function civHtml(){var c=CO(),d=P.devis,L=devisLines()||[],vat=+P.client.vat||6,
  '<table class="ctot"><tr><td>Total HTVA</td><td>'+civN(ht)+' €</td></tr><tr><td>Total TVA</td><td>'+civN(tva)+' €</td></tr><tr><td>Total TVAC</td><td>'+civN(ttc)+' €</td></tr><tr><td>Acompte</td><td>€</td></tr><tr class="cnet"><td>TOTAL</td><td>'+civN(ttc)+' €</td></tr></table></div>'+
  '<div class="csig"><div><b>Pour accord</b><br>Date et signature du client, précédées de la mention « Bon pour accord »</div><div class="cbox">'+(d.sig?'<img src="'+d.sig+'" alt="Signature">':'')+'</div></div>'+(d.sig?'<div class="csok">Bon pour accord — '+esc(d.sigName)+(d.sigPlace?', à '+esc(d.sigPlace):'')+', le '+civDate(d.sigDate)+' à '+esc(d.sigTime)+'</div>':'')+
  '<div class="cfoot"><p>Cette offre est valable pour une durée de 3 mois à compter de sa date d’émission.</p><p><span class="red">Conditions générales de paiement :</span> '+esc(c.cgv)+'</p><p class="big">'+esc(c.acompteTxt)+'</p><p><b>Pour acceptation merci de retourner ce devis et conditions générales de vente signé avec la mention "Bon pour Accord".</b></p><p><b>'+esc(c.reserveTxt)+'</b></p></div></div>';}
-var VERSION='TEST 12.1 – 13 nov. 2026';
+var VERSION='TEST 12.2 – 13 nov. 2026';
 function vSync(){var c=Sync.cfg();
  if(c.token)return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><div class="okb">Activée et chiffrée 🔒 : tout ce que tu fais ici se retrouve sur tes autres appareils, et inversement (toutes les 15 secondes et à chaque ouverture). GitHub ne voit qu’un bloc illisible.</div><p class="note" id="syncst">'+esc(Sync.status()||'')+'</p><div class="btns"><button class="btn" data-a="syncNow">↻ Synchroniser maintenant</button><button class="btn s" data-a="syncOff">Déconnecter cet appareil</button></div></div>';
  return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><p class="note">Tes études, prix et réglages sont gardés dans un coffre privé sur ton compte GitHub (gratuit). À faire <b>une seule fois</b> :</p>'+
@@ -591,12 +607,13 @@ function H3D(){var o=L0();return {o:o,toLL:toLL,gkey:gkey,solar:function(xy){ret
  delPt:function(id,k){var p=P.pans.find(function(x){return x.id===id;});if(!p||p.pts.length<=3)return false;p.pts.splice(k,1);afterGeom(p);return true;},
  delPan:function(id){P.pans=P.pans.filter(function(x){return x.id!==id;});if(selPan===id)selPan=null;dirty();save();drawPans();render();},
  undo:function(){ACT.undo();},lat:function(){return P.lat;},lon:function(){return P.lon;},
+ pv:pvStats,tog:pvToggle,fill:pvFill,clear:pvClear,orient:pvOrient,calc:function(){tab('etude');},
  center:function(){if(!P.pans.length){var c=map.getCenter();return toXY([c.lat,c.lng],o);}var all=[];P.pans.forEach(function(p){p.pts.forEach(function(q){all.push(toXY(q,o));});});return centroid(all);},
  getGrid:function(cx,cy,half,step,pr){return getGrid(cx,cy,half,step,pr);},
  pans3d:function(G){var used=RES&&RES.mine?RES.mine.kwcPan:null,m=MOD();return P.pans.map(function(p){var fr=panFrame(p),ct=Math.cos((p.tilt||30)*RAD);
   var zf=function(x,y){var z=panZ(p,x,y);if(z!=null)return z;var g=gridAt(x,y);return g!=null?g:0;};
   if(!p.plane){var A=[];innerPts(p,G.step).pts.forEach(function(q){var z=gridAt(q[0],q[1]);if(z!=null)A.push([q[0],q[1],z]);});var f=A.length>=6?fitPlane(A):null;if(f)zf=function(x,y){return f.a*x+f.b*y+f.c;};}
-  var lim=used?Math.round((used[p.id]||0)*1000/m.wc):1e9,k=0,pans=[];(p.panels||[]).forEach(function(pp){if(!pp.on)return;var c=[[pp.u,pp.s],[pp.u+p.pw,pp.s],[pp.u+p.pw,pp.s+p.ph],[pp.u,pp.s+p.ph]].map(function(us){var h=us[1]*ct;return [fr.p0[0]+fr.e[0]*us[0]-fr.n[0]*h,fr.p0[1]+fr.e[1]*us[0]-fr.n[1]*h];});pans.push({c:c,used:k++<lim});});
+  var lim=used?Math.round((used[p.id]||0)*1000/m.wc):1e9,k=0,pans=[];(p.panels||[]).forEach(function(pp,ix){var c=[[pp.u,pp.s],[pp.u+p.pw,pp.s],[pp.u+p.pw,pp.s+p.ph],[pp.u,pp.s+p.ph]].map(function(us){var h=us[1]*ct;return [fr.p0[0]+fr.e[0]*us[0]-fr.n[0]*h,fr.p0[1]+fr.e[1]*us[0]-fr.n[1]*h];});if(!pp.on){pans.push({c:c,used:false,off:true,k:ix});return;}pans.push({c:c,used:k++<lim,k:ix});});
   return {id:p.id,name:p.name,color:p.color,xy:fr.xy,z:zf,panels:pans};});}};}
 function measure(pan){var fr=panFrame(pan),c=centroid(fr.xy),rad=0;fr.xy.forEach(function(q){rad=Math.max(rad,Math.hypot(q[0]-c[0],q[1]-c[1]));});
  pan.lidar={st:'run'};render();
@@ -682,5 +699,9 @@ if(LINK){var ex=DB.studies.find(function(x){return x.link&&x.link.ref===LINK.ref
 initMap();if(P.pans.length){map.setView([P.mlat||P.lat,P.mlon||P.lon],P.zoom||19);}drawPans();tab('toit');
 if(LINK&&!P.pans.length&&P.client.addr){$('#q').value=P.client.addr;setTimeout(function(){ACT.geo();},300);}
 if(LINK)toast('🔗 Chantier '+LINK.ref+' ouvert depuis Rtoitures App',4000);
-window.__RT={get map(){return map;},get P(){return P;},get RES(){return RES;},get W(){return W;},ACT:ACT,layout:layout,parseCSV:parseCSV,tab:tab};
+ACT.pv3d=function(){if(!P.pans.length){toast('Dessine ou détecte d’abord les versants (onglet Toit)');return;}View3D.open(H3D(),{google:false,mode:'pv'});};
+ACT.pvFillAll=function(){pvFill(null);toast(onPanels().length?'✨ Versants bien exposés remplis':'Aucun versant bien exposé : remplis-en un à la main');};
+ACT.pvClearAll=function(){pvClear(null);toast('🧹 Panneaux enlevés');};
+ACT.pvFillP=function(el){pvFill(el.dataset.id);};ACT.pvClearP=function(el){pvClear(el.dataset.id);};
+window.__RT={get map(){return map;},get P(){return P;},get RES(){return RES;},get W(){return W;},ACT:ACT,layout:layout,pvStats:pvStats,yFac:yFac,parseCSV:parseCSV,tab:tab};
 })();

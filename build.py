@@ -5,7 +5,7 @@ r=lambda p:open(os.path.join(d,p),encoding='utf-8').read()
 css=r('src/style.css')+r('src/civ.css')
 html=f'''<!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>R Toitures Photovoltaïque TEST 12.1</title><meta name="theme-color" content="#1c1917">
+<title>R Toitures Photovoltaïque TEST 12.2</title><meta name="theme-color" content="#1c1917">
 <style>{r('vendor/leaflet.css')}</style><style>{css}</style></head><body>
 {r('src/body.html')}
 <script>{r('vendor/leaflet.js')}</script>
