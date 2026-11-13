@@ -11,15 +11,15 @@ var DEF={
  fin:{infl:2,deg:0.4,disc:3,invYear:13,batYear:15,batRep:50,maint:0,loss:10,bats:'5,10'},
  seq:2
 };
-var LS='rts_v1',DB;
+var TESTMODE=/\/test\//.test(location.pathname),LS=TESTMODE?'rts_test_v1':'rts_v1',DB;
 function clone(o){return JSON.parse(JSON.stringify(o));}
-function load(){try{DB=JSON.parse(localStorage.getItem(LS)||'null');}catch(e){DB=null;}
+function load(){try{DB=JSON.parse(localStorage.getItem(LS)||(TESTMODE?localStorage.getItem('rts_v1'):null)||'null');}catch(e){DB=null;}
  if(!DB)DB={studies:[]};['prices','tariff','fin'].forEach(function(k){DB[k]=Object.assign(clone(DEF[k]),DB[k]||{});});if(!DB.seq)DB.seq=DEF.seq;if(!DB.studies)DB.studies=[];if(!DB.company)DB.company={};}
 var saveT=null;function save(){clearTimeout(saveT);saveT=setTimeout(saveNow,300);}
 function saveNow(noSync){if(P){P.upd=Date.now();var i=DB.studies.findIndex(function(s){return s.id===P.id;});if(i<0)DB.studies.unshift(P);else DB.studies[i]=P;}
  try{localStorage.setItem(LS,JSON.stringify(DB));}catch(e){toast('⚠ Mémoire du navigateur pleine : exporte puis supprime d’anciennes études');}if(!noSync)Sync.later();}
 /* ================= Synchronisation PC ↔ téléphone (gist GitHub privé) ================= */
-var Sync=(function(){var KEY='rts_sync',FILE='rts-chiffre.json',DESC='rts-sync-v2 (donnees chiffrees, ne pas supprimer)',busy=false,tmr=null,last=0,status='',kc={};
+var Sync=(function(){var KEY=TESTMODE?'rts_test_sync':'rts_sync',FILE='rts-chiffre.json',DESC='rts-sync-v2 (donnees chiffrees, ne pas supprimer)',busy=false,tmr=null,last=0,status='',kc={};
  function b64(u){var s='';u=new Uint8Array(u);for(var i=0;i<u.length;i++)s+=String.fromCharCode(u[i]);return btoa(s);}
  function ub64(t){var s=atob(t),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u;}
  function key(pass,salt){var k=pass+'|'+b64(salt);if(kc[k])return kc[k];var e=new TextEncoder();
@@ -440,7 +440,7 @@ function civHtml(){var c=CO(),d=P.devis,L=devisLines()||[],vat=+P.client.vat||6,
  '<table class="ctot"><tr><td>Total HTVA</td><td>'+civN(ht)+' €</td></tr><tr><td>Total TVA</td><td>'+civN(tva)+' €</td></tr><tr><td>Total TVAC</td><td>'+civN(ttc)+' €</td></tr><tr><td>Acompte</td><td>€</td></tr><tr class="cnet"><td>TOTAL</td><td>'+civN(ttc)+' €</td></tr></table></div>'+
  '<div class="csig"><div><b>Pour accord</b><br>Date et signature du client, précédées de la mention « Bon pour accord »</div><div class="cbox">'+(d.sig?'<img src="'+d.sig+'" alt="Signature">':'')+'</div></div>'+(d.sig?'<div class="csok">Bon pour accord — '+esc(d.sigName)+(d.sigPlace?', à '+esc(d.sigPlace):'')+', le '+civDate(d.sigDate)+' à '+esc(d.sigTime)+'</div>':'')+
  '<div class="cfoot"><p>Cette offre est valable pour une durée de 3 mois à compter de sa date d’émission.</p><p><span class="red">Conditions générales de paiement :</span> '+esc(c.cgv)+'</p><p class="big">'+esc(c.acompteTxt)+'</p><p><b>Pour acceptation merci de retourner ce devis et conditions générales de vente signé avec la mention "Bon pour Accord".</b></p><p><b>'+esc(c.reserveTxt)+'</b></p></div></div>';}
-var VERSION='12 – 6 nov. 2026';
+var VERSION='TEST 12.1 – 13 nov. 2026';
 function vSync(){var c=Sync.cfg();
  if(c.token)return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><div class="okb">Activée et chiffrée 🔒 : tout ce que tu fais ici se retrouve sur tes autres appareils, et inversement (toutes les 15 secondes et à chaque ouverture). GitHub ne voit qu’un bloc illisible.</div><p class="note" id="syncst">'+esc(Sync.status()||'')+'</p><div class="btns"><button class="btn" data-a="syncNow">↻ Synchroniser maintenant</button><button class="btn s" data-a="syncOff">Déconnecter cet appareil</button></div></div>';
  return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><p class="note">Tes études, prix et réglages sont gardés dans un coffre privé sur ton compte GitHub (gratuit). À faire <b>une seule fois</b> :</p>'+
