@@ -152,6 +152,8 @@ var View3D=(function(){
   for(j=0;j<n-1;j++)for(i=0;i<n-1;i++){var a=j*n+i,b=a+1,c2=a+n,d2=c2+1;if(Math.abs(z[a]-z[d2])<Math.abs(z[b]-z[c2]))idx.push(a,b,d2,a,d2,c2);else idx.push(a,b,c2,b,d2,c2);}
   geo.setIndex(idx);geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));geo.computeVertexNormals();
   var mat=tex?new THREE.MeshLambertMaterial({map:tex}):new THREE.MeshLambertMaterial({color:0xb9c2a5});
+  // décor : les faces raides du relevé (façades voisines, bords d'arbres) en teinte façade au lieu de la photo étirée
+  mat.onBeforeCompile=function(sh){sh.fragmentShader=sh.fragmentShader.replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\n float upW=dot(normal,normalize((viewMatrix*vec4(0.0,1.0,0.0,0.0)).xyz));diffuseColor.rgb=mix(vec3(0.58,0.55,0.51),diffuseColor.rgb,smoothstep(0.30,0.62,upW));');};
   var mesh=new THREE.Mesh(geo,mat);mesh.castShadow=true;mesh.receiveShadow=true;grp.add(mesh);st.terrain=mesh;
   var span=G.step*(n-1),TW=texWall();if(!TW.map){TW.map=wrapTex(TW.c,true);TW.nm=wrapTex(TW.nc,false);}
   var wallMat=new THREE.MeshStandardMaterial({color:0xece6dc,map:TW.map,normalMap:TW.nm,roughness:0.95,side:THREE.DoubleSide,envMapIntensity:1}),photoMat=tex?new THREE.MeshStandardMaterial({map:tex,roughness:0.85,side:THREE.DoubleSide}):new THREE.MeshStandardMaterial({color:0x6b6f76,roughness:0.85,side:THREE.DoubleSide}),

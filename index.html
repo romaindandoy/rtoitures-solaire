@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>R Toitures Photovoltaïque TEST 12.2</title><meta name="theme-color" content="#1c1917">
+<title>R Toitures Photovoltaïque TEST 12.3</title><meta name="theme-color" content="#1c1917">
 <style>/* required styles */
 
 .leaflet-pane,
@@ -5046,6 +5046,8 @@ var View3D=(function(){
   for(j=0;j<n-1;j++)for(i=0;i<n-1;i++){var a=j*n+i,b=a+1,c2=a+n,d2=c2+1;if(Math.abs(z[a]-z[d2])<Math.abs(z[b]-z[c2]))idx.push(a,b,d2,a,d2,c2);else idx.push(a,b,c2,b,d2,c2);}
   geo.setIndex(idx);geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));geo.computeVertexNormals();
   var mat=tex?new THREE.MeshLambertMaterial({map:tex}):new THREE.MeshLambertMaterial({color:0xb9c2a5});
+  // décor : les faces raides du relevé (façades voisines, bords d'arbres) en teinte façade au lieu de la photo étirée
+  mat.onBeforeCompile=function(sh){sh.fragmentShader=sh.fragmentShader.replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\n float upW=dot(normal,normalize((viewMatrix*vec4(0.0,1.0,0.0,0.0)).xyz));diffuseColor.rgb=mix(vec3(0.58,0.55,0.51),diffuseColor.rgb,smoothstep(0.30,0.62,upW));');};
   var mesh=new THREE.Mesh(geo,mat);mesh.castShadow=true;mesh.receiveShadow=true;grp.add(mesh);st.terrain=mesh;
   var span=G.step*(n-1),TW=texWall();if(!TW.map){TW.map=wrapTex(TW.c,true);TW.nm=wrapTex(TW.nc,false);}
   var wallMat=new THREE.MeshStandardMaterial({color:0xece6dc,map:TW.map,normalMap:TW.nm,roughness:0.95,side:THREE.DoubleSide,envMapIntensity:1}),photoMat=tex?new THREE.MeshStandardMaterial({map:tex,roughness:0.85,side:THREE.DoubleSide}):new THREE.MeshStandardMaterial({color:0x6b6f76,roughness:0.85,side:THREE.DoubleSide}),
@@ -5745,7 +5747,7 @@ function civHtml(){var c=CO(),d=P.devis,L=devisLines()||[],vat=+P.client.vat||6,
  '<table class="ctot"><tr><td>Total HTVA</td><td>'+civN(ht)+' €</td></tr><tr><td>Total TVA</td><td>'+civN(tva)+' €</td></tr><tr><td>Total TVAC</td><td>'+civN(ttc)+' €</td></tr><tr><td>Acompte</td><td>€</td></tr><tr class="cnet"><td>TOTAL</td><td>'+civN(ttc)+' €</td></tr></table></div>'+
  '<div class="csig"><div><b>Pour accord</b><br>Date et signature du client, précédées de la mention « Bon pour accord »</div><div class="cbox">'+(d.sig?'<img src="'+d.sig+'" alt="Signature">':'')+'</div></div>'+(d.sig?'<div class="csok">Bon pour accord — '+esc(d.sigName)+(d.sigPlace?', à '+esc(d.sigPlace):'')+', le '+civDate(d.sigDate)+' à '+esc(d.sigTime)+'</div>':'')+
  '<div class="cfoot"><p>Cette offre est valable pour une durée de 3 mois à compter de sa date d’émission.</p><p><span class="red">Conditions générales de paiement :</span> '+esc(c.cgv)+'</p><p class="big">'+esc(c.acompteTxt)+'</p><p><b>Pour acceptation merci de retourner ce devis et conditions générales de vente signé avec la mention "Bon pour Accord".</b></p><p><b>'+esc(c.reserveTxt)+'</b></p></div></div>';}
-var VERSION='TEST 12.2 – 13 nov. 2026';
+var VERSION='TEST 12.3 – 13 nov. 2026';
 function vSync(){var c=Sync.cfg();
  if(c.token)return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><div class="okb">Activée et chiffrée 🔒 : tout ce que tu fais ici se retrouve sur tes autres appareils, et inversement (toutes les 15 secondes et à chaque ouverture). GitHub ne voit qu’un bloc illisible.</div><p class="note" id="syncst">'+esc(Sync.status()||'')+'</p><div class="btns"><button class="btn" data-a="syncNow">↻ Synchroniser maintenant</button><button class="btn s" data-a="syncOff">Déconnecter cet appareil</button></div></div>';
  return '<div class="card"><h3>☁️ Synchronisation PC ↔ téléphone</h3><p class="note">Tes études, prix et réglages sont gardés dans un coffre privé sur ton compte GitHub (gratuit). À faire <b>une seule fois</b> :</p>'+
